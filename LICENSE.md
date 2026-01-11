@@ -1,4 +1,4 @@
-Copyright (C) 2026 Leon van Zyl
+Copyright (C) 2026 Undiluted Tech
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -645,7 +645,7 @@ state the exclusion of warranty; and each file should have at least
 the "copyright" line and a pointer to where the full notice is found.
 
     <one line to give the program's name and a brief idea of what it does.>
-    Copyright (C) 2026 Leon van Zyl
+    Copyright (C) 2026 Undiluted Tech
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as

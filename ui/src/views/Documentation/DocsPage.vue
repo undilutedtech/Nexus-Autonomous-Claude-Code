@@ -654,7 +654,7 @@
       <!-- Version Info -->
       <div class="text-center text-sm text-gray-500 dark:text-gray-400">
         <p>Nexus - Autonomous Coding Platform</p>
-        <p class="text-xs mt-1">Powered by Claude AI | Inspired by <a href="https://github.com/leonvanzyl/autocoder" class="text-brand-500 hover:underline" target="_blank">leonvanzyl/autocoder</a></p>
+        <p class="text-xs mt-1">Powered by Claude AI | <a href="https://github.com/undilutedtech/Nexus-Autonomous-Claude-Code" class="text-brand-500 hover:underline" target="_blank">View on GitHub</a></p>
       </div>
     </div>
   </AdminLayout>
