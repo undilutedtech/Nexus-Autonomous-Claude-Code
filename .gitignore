@@ -1,0 +1,195 @@
+# ===================
+# Claude Code / AI Assistant
+# ===================
+# Keep .claude/ directory (has essential templates, skills, commands)
+# But exclude user-specific settings
+.claude/settings.local.json
+.claude/settings.json
+.claude/*.local.json
+.anthropic/
+
+# Agent-generated output directories
+generations/
+
+# Log files
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===================
+# Node.js
+# ===================
+node_modules/
+.npm
+.yarn-integrity
+.node_repl_history
+
+# ===================
+# Python
+# ===================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+env/
+.env.bak/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+
+# Unit test / coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+nosetests.xml
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ===================
+# IDE / Editors
+# ===================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+.spyderproject
+.spyproject
+.ropeproject
+
+# ===================
+# OS generated files
+# ===================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ===================
+# Build outputs
+# ===================
+ui/dist/
+ui/.vite/
+.vite/
+
+# ===================
+# Environment files
+# ===================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# ===================
+# Cache directories
+# ===================
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# ===================
+# Lock files (except package-lock.json)
+# ===================
+yarn.lock
+pnpm-lock.yaml
+poetry.lock
+Pipfile.lock
+
+# ===================
+# Misc
+# ===================
+*.bak
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# ===================
+# Database files
+# ===================
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+registry.db
+
+# ===================
+# Test artifacts
+# ===================
+test-results/
+ui/test-results/
+playwright-report/
+ui/playwright-report/
+playwright/.cache/
+.playwright/
+/tmp/test-screenshots/
+
+# ===================
+# Agent files
+# ===================
+.agent.lock
+*.agent.lock
+agent-*.log
+
+# ===================
+# Backup directories
+# ===================
+*-backup/
+*.backup
+backups/
+
+# ===================
+# Project-specific
+# ===================
+# Generated documentation
+TECHNICAL_DOCS.md
+PLACEHOLDERS.md
+
+# Worktree directories (git worktrees for parallel agents)
+*-agent-*/
+
+# Assets uploaded by users (optional - uncomment if needed)
+# projects/*/assets/
+
+# MCP server cache
+.mcp-cache/

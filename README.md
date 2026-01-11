@@ -1,16 +1,19 @@
 # Nexus - Autonomous Coding Platform
 
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/leonvanzyl)
+[![GitHub](https://img.shields.io/badge/GitHub-undilutedtech-181717?style=flat&logo=github)](https://github.com/undilutedtech/Nexus-Autonomous-Claude-Code)
 
 A long-running autonomous coding agent powered by the Claude Agent SDK. This tool can build complete applications over multiple sessions using a two-agent pattern (initializer + coding agent). Includes a Vue 3-based UI for monitoring progress in real-time.
 
-> **Inspired by [leonvanzyl/autocoder](https://github.com/leonvanzyl/autocoder)** - Extended with multi-agent support, git worktrees, asset management, and more.
+## Features
 
-## Video Tutorial
-
-[![Watch the tutorial](https://img.youtube.com/vi/lGWFlpffWk4/hqdefault.jpg)](https://youtu.be/lGWFlpffWk4)
-
-> **[Watch the setup and usage guide →](https://youtu.be/lGWFlpffWk4)**
+- **Two-Agent Pattern** - Initializer creates features, coding agent implements them
+- **Real-time Web UI** - Monitor progress with a modern Vue 3 dashboard
+- **Multi-Agent Support** - Run multiple agents in parallel on different features
+- **Git Worktrees** - Isolate parallel agent work in separate git worktrees
+- **Asset Management** - Upload images/files to reference in app specifications
+- **Custom Subagents** - Configure specialized agents (test-runner, code-reviewer)
+- **Code Validation** - OWASP Top 10 security scanning
+- **Project Lifecycle** - Pause, resume, finish, restart, and reset projects
 
 ---
 
@@ -53,7 +56,7 @@ start_ui.bat
 ./start_ui.sh
 ```
 
-This launches the React-based web UI at `http://localhost:5173` with:
+This launches the web UI at `http://localhost:5173` with:
 - Project selection and creation
 - Kanban board view of features
 - Real-time agent output streaming
@@ -113,9 +116,7 @@ Features are stored in SQLite via SQLAlchemy and managed through an MCP server t
 - The agent auto-continues between sessions (3 second delay)
 - Press `Ctrl+C` to pause; run the start script again to resume
 
-### Enhanced Features (Nexus Extensions)
-
-This fork adds several powerful features:
+### Enhanced Features
 
 | Feature | Description |
 |---------|-------------|
@@ -148,7 +149,7 @@ This fork adds several powerful features:
 ## Project Structure
 
 ```
-autonomous-coding/
+nexus/
 ├── start.bat                 # Windows CLI start script
 ├── start.sh                  # macOS/Linux CLI start script
 ├── start_ui.bat              # Windows Web UI start script
@@ -184,9 +185,8 @@ autonomous-coding/
 │   │   └── create-spec.md    # /create-spec slash command
 │   ├── skills/               # Claude Code skills
 │   └── templates/            # Prompt templates
-├── generations/              # Generated projects go here
 ├── requirements.txt          # Python dependencies
-└── .env                      # Optional configuration (N8N webhook)
+└── .env                      # Optional configuration
 ```
 
 ---
@@ -196,7 +196,7 @@ autonomous-coding/
 After the agent runs, your project directory will contain:
 
 ```
-generations/my_project/
+my_project/
 ├── features.db               # SQLite database (feature test cases)
 ├── prompts/
 │   ├── app_spec.txt          # Your app specification
@@ -214,7 +214,7 @@ generations/my_project/
 After the agent completes (or pauses), you can run the generated application:
 
 ```bash
-cd generations/my_project
+cd my_project
 
 # Run the setup script created by the agent
 ./init.sh
@@ -246,7 +246,7 @@ Commands not in the allowlist are blocked by the security hook.
 
 ## Web UI Development
 
-The React UI is located in the `ui/` directory.
+The Vue UI is located in the `ui/` directory.
 
 ### Development Mode
 
@@ -268,10 +268,9 @@ npm run build    # Builds to ui/dist/
 ### Tech Stack
 
 - Vue 3 with TypeScript (Composition API)
-- Pinia for state management
-- Tailwind CSS v4 with modern design
+- Tailwind CSS v4 with TailAdmin theme
 - WebSocket for real-time updates
-- Playwright for E2E testing
+- Vite for fast builds
 
 ### Real-time Updates
 
@@ -283,28 +282,25 @@ The UI receives live updates via WebSocket (`/ws/projects/{project_name}`):
 
 ---
 
-## Configuration (Optional)
+## Configuration
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `NEXUS_SECRET_KEY` | JWT secret key for authentication (auto-generated if not set) |
+| `NEXUS_AUTO_CONTINUE_DELAY` | Delay between agent sessions in seconds (default: 3) |
+| `NEXUS_MAX_FEATURE_ATTEMPTS` | Max attempts per feature before skipping (default: 3) |
+| `NEXUS_MAX_COST_USD` | Maximum cost limit in USD |
+| `NEXUS_MAX_TOKENS` | Maximum token limit |
+| `PROGRESS_N8N_WEBHOOK_URL` | Optional N8N webhook for notifications |
 
 ### N8N Webhook Integration
 
 The agent can send progress notifications to an N8N webhook. Create a `.env` file:
 
 ```bash
-# Optional: N8N webhook for progress notifications
 PROGRESS_N8N_WEBHOOK_URL=https://your-n8n-instance.com/webhook/your-webhook-id
-```
-
-When test progress increases, the agent sends:
-
-```json
-{
-  "event": "test_progress",
-  "passing": 45,
-  "total": 200,
-  "percentage": 22.5,
-  "project": "my_project",
-  "timestamp": "2025-01-15T14:30:00.000Z"
-}
 ```
 
 ---
@@ -342,6 +338,10 @@ The agent tried to run a command not in the allowlist. This is the security syst
 ## License
 
 This project is licensed under the GNU Affero General Public License v3.0 - see the [LICENSE.md](LICENSE.md) file for details.
-Copyright (C) 2026 Leon van Zyl (https://leonvanzyl.com)
-# Nexus-Autonomous-Claude-Code
-# Nexus-Autonomous-Claude-Code
+
+---
+
+## Links
+
+- **GitHub:** https://github.com/undilutedtech/Nexus-Autonomous-Claude-Code
+- **Documentation:** Available in the app at `/docs`
