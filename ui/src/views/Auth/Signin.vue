@@ -268,7 +268,7 @@ const handleSubmit = async () => {
   if (result.success) {
     // Redirect to intended destination or dashboard
     const redirect = route.query.redirect as string
-    router.push(redirect || '/')
+    router.push(redirect || '/dashboard')
   }
 }
 </script>

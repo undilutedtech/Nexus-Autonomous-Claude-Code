@@ -332,7 +332,7 @@ const handleSubmit = async () => {
   })
 
   if (success) {
-    router.push('/')
+    router.push('/dashboard')
   }
 }
 </script>

@@ -154,7 +154,7 @@ async def list_projects():
 async def create_project(project: ProjectCreate):
     """Create a new project at the specified path."""
     _init_imports()
-    register_project, _, get_project_path, *_ = _get_registry_functions()
+    register_project, unregister_project, get_project_path, *_ = _get_registry_functions()
 
     name = validate_project_name(project.name)
     project_path = Path(project.path).resolve()
@@ -168,7 +168,8 @@ async def create_project(project: ProjectCreate):
                 status_code=409,
                 detail=f"Project '{name}' already exists at {existing}"
             )
-        # Old path doesn't exist - will be updated by register_project()
+        # Old path doesn't exist - unregister so we can re-register with new path
+        unregister_project(name)
 
     # Security: Check if path is in a blocked location
     from .filesystem import is_path_blocked

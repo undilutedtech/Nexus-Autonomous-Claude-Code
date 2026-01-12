@@ -172,11 +172,11 @@ router.beforeEach((to, from, next) => {
   const isAuthenticated = !!getAuthToken()
 
   if (!isPublicRoute && !isAuthenticated) {
-    // Redirect to landing if not authenticated (instead of signin)
-    next({ name: 'Landing' })
+    // Redirect to signin if not authenticated
+    next({ name: 'Signin' })
   } else if (isAuthenticated && (to.name === 'Signin' || to.name === 'Signup')) {
-    // Redirect authenticated users away from auth pages to landing (not dashboard)
-    next({ name: 'Landing' })
+    // Redirect authenticated users away from auth pages to dashboard
+    next({ name: 'Dashboard' })
   } else {
     next()
   }

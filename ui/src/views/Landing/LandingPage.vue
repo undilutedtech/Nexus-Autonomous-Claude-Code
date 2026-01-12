@@ -46,18 +46,28 @@
 
           <!-- CTA Buttons -->
           <div class="flex items-center gap-3">
-            <router-link
-              to="/signin"
-              class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition"
-            >
-              Sign In
-            </router-link>
-            <router-link
-              to="/signup"
-              class="px-5 py-2.5 text-sm font-semibold text-white bg-brand-500 hover:bg-brand-600 rounded-lg transition shadow-lg shadow-brand-500/25"
-            >
-              Get Started
-            </router-link>
+            <template v-if="isAuthenticated">
+              <router-link
+                to="/dashboard"
+                class="px-5 py-2.5 text-sm font-semibold text-white bg-brand-500 hover:bg-brand-600 rounded-lg transition shadow-lg shadow-brand-500/25"
+              >
+                Go to Dashboard
+              </router-link>
+            </template>
+            <template v-else>
+              <router-link
+                to="/signin"
+                class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition"
+              >
+                Sign In
+              </router-link>
+              <router-link
+                to="/signup"
+                class="px-5 py-2.5 text-sm font-semibold text-white bg-brand-500 hover:bg-brand-600 rounded-lg transition shadow-lg shadow-brand-500/25"
+              >
+                Get Started
+              </router-link>
+            </template>
           </div>
         </div>
       </div>
@@ -102,10 +112,10 @@
           <!-- CTA Buttons -->
           <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
             <router-link
-              to="/signup"
+              :to="isAuthenticated ? '/projects' : '/signup'"
               class="w-full sm:w-auto px-8 py-4 text-base font-semibold text-white bg-brand-500 hover:bg-brand-600 rounded-xl transition-all shadow-xl shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 flex items-center justify-center gap-2"
             >
-              Start Building Free
+              {{ isAuthenticated ? 'View Projects' : 'Start Building Free' }}
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
@@ -342,21 +352,40 @@
           Join developers using Nexus to build applications faster than ever before.
         </p>
         <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <router-link
-            to="/signup"
-            class="w-full sm:w-auto px-8 py-4 text-base font-semibold text-brand-950 bg-white hover:bg-gray-100 rounded-xl transition-all shadow-xl flex items-center justify-center gap-2"
-          >
-            Create Free Account
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </router-link>
-          <router-link
-            to="/signin"
-            class="w-full sm:w-auto px-8 py-4 text-base font-semibold text-white border border-white/20 hover:bg-white/10 rounded-xl transition-all flex items-center justify-center"
-          >
-            Sign In
-          </router-link>
+          <template v-if="isAuthenticated">
+            <router-link
+              to="/projects/new"
+              class="w-full sm:w-auto px-8 py-4 text-base font-semibold text-brand-950 bg-white hover:bg-gray-100 rounded-xl transition-all shadow-xl flex items-center justify-center gap-2"
+            >
+              Create New Project
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+            </router-link>
+            <router-link
+              to="/dashboard"
+              class="w-full sm:w-auto px-8 py-4 text-base font-semibold text-white border border-white/20 hover:bg-white/10 rounded-xl transition-all flex items-center justify-center"
+            >
+              Go to Dashboard
+            </router-link>
+          </template>
+          <template v-else>
+            <router-link
+              to="/signup"
+              class="w-full sm:w-auto px-8 py-4 text-base font-semibold text-brand-950 bg-white hover:bg-gray-100 rounded-xl transition-all shadow-xl flex items-center justify-center gap-2"
+            >
+              Create Free Account
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </router-link>
+            <router-link
+              to="/signin"
+              class="w-full sm:w-auto px-8 py-4 text-base font-semibold text-white border border-white/20 hover:bg-white/10 rounded-xl transition-all flex items-center justify-center"
+            >
+              Sign In
+            </router-link>
+          </template>
         </div>
       </div>
     </section>
@@ -408,7 +437,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, h } from 'vue'
+import { ref, h, computed } from 'vue'
+import { getAuthToken } from '@/api/client'
+
+// Check if user is authenticated
+const isAuthenticated = computed(() => !!getAuthToken())
 
 // 3D Tilt effect
 const tiltX = ref(0)
