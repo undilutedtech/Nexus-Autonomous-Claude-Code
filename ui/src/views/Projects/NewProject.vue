@@ -112,37 +112,70 @@
             </p>
           </div>
 
-          <!-- Template Selection -->
-          <div>
-            <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-400">
-              Start from a template (optional)
-            </label>
-            <div class="grid grid-cols-2 gap-3">
-              <button
-                v-for="template in templates"
-                :key="template.id"
-                type="button"
-                @click="selectTemplate(template)"
-                class="flex flex-col items-start rounded-lg border p-3 text-left transition"
-                :class="selectedTemplate?.id === template.id
-                  ? 'border-brand-500 bg-brand-50 dark:border-brand-400 dark:bg-brand-900/20'
-                  : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'"
-              >
-                <span class="text-sm font-medium text-gray-800 dark:text-white/90">{{ template.name }}</span>
-                <span class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ template.description }}</span>
-              </button>
-            </div>
+          <!-- Spec Mode Toggle -->
+          <div class="flex rounded-lg border border-gray-200 dark:border-gray-700 p-1 bg-gray-50 dark:bg-gray-800/50">
+            <button
+              type="button"
+              @click="specMode = 'manual'"
+              class="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition"
+              :class="specMode === 'manual'
+                ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Manual / Template
+            </button>
+            <button
+              type="button"
+              @click="specMode = 'generator'"
+              :disabled="!form.name"
+              class="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition"
+              :class="specMode === 'generator'
+                ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed'"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              AI Generator
+            </button>
           </div>
 
-          <!-- App Spec Editor -->
-          <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-              Application Specification
-            </label>
-            <textarea
-              v-model="form.appSpec"
-              rows="12"
-              placeholder="<project_specification>
+          <!-- Manual Mode: Templates + Editor -->
+          <template v-if="specMode === 'manual'">
+            <!-- Template Selection -->
+            <div>
+              <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-400">
+                Start from a template (optional)
+              </label>
+              <div class="grid grid-cols-2 gap-3">
+                <button
+                  v-for="template in templates"
+                  :key="template.id"
+                  type="button"
+                  @click="selectTemplate(template)"
+                  class="flex flex-col items-start rounded-lg border p-3 text-left transition"
+                  :class="selectedTemplate?.id === template.id
+                    ? 'border-brand-500 bg-brand-50 dark:border-brand-400 dark:bg-brand-900/20'
+                    : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'"
+                >
+                  <span class="text-sm font-medium text-gray-800 dark:text-white/90">{{ template.name }}</span>
+                  <span class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ template.description }}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- App Spec Editor -->
+            <div>
+              <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
+                Application Specification
+              </label>
+              <textarea
+                v-model="form.appSpec"
+                rows="12"
+                placeholder="<project_specification>
 <name>My Application</name>
 <description>A brief description of what your app does...</description>
 <tech_stack>
@@ -154,12 +187,45 @@
   <feature>Dashboard with analytics</feature>
 </features>
 </project_specification>"
-              class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-3 font-mono text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
-            ></textarea>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              XML format recommended. You can also edit this later in the project settings.
-            </p>
-          </div>
+                class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-3 font-mono text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
+              ></textarea>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                XML format recommended. You can also edit this later in the project settings.
+              </p>
+            </div>
+          </template>
+
+          <!-- AI Generator Mode -->
+          <template v-else-if="specMode === 'generator'">
+            <div v-if="!projectCreatedForGenerator" class="text-center py-8">
+              <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-brand-100 dark:bg-brand-900/30 mb-4">
+                <svg class="w-6 h-6 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <h4 class="text-sm font-medium text-gray-800 dark:text-white/90 mb-2">Ready to generate your spec?</h4>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-sm mx-auto">
+                We'll create your project first, then you can chat with Claude to interactively build your app specification.
+              </p>
+              <button
+                @click="createProjectForGenerator"
+                :disabled="!form.name || !form.path || isCreatingForGenerator"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-500 text-white text-sm font-medium transition hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg v-if="isCreatingForGenerator" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                {{ isCreatingForGenerator ? 'Creating project...' : 'Start AI Generator' }}
+              </button>
+            </div>
+            <div v-else class="h-[400px]">
+              <SpecGeneratorChat
+                :project-name="form.name"
+                @complete="onSpecGeneratorComplete"
+              />
+            </div>
+          </template>
         </div>
 
         <!-- Step 3: Configuration -->
@@ -360,6 +426,7 @@ import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import PageBreadcrumb from '@/components/common/PageBreadcrumb.vue'
 import FolderBrowser from '@/components/projects/FolderBrowser.vue'
+import SpecGeneratorChat from '@/components/projects/SpecGeneratorChat.vue'
 import { projectsAPI, configAPI, agentAPI } from '@/api/client'
 
 const router = useRouter()
@@ -391,6 +458,12 @@ const showFolderBrowser = ref(false)
 const isCreating = ref(false)
 const createError = ref('')
 const selectedTemplate = ref<typeof templates[0] | null>(null)
+
+// Spec generator state
+const specMode = ref<'manual' | 'generator'>('manual')
+const projectCreatedForGenerator = ref(false)
+const isCreatingForGenerator = ref(false)
+const specGeneratorComplete = ref(false)
 
 // Templates
 const templates = [
@@ -505,6 +578,32 @@ function selectTemplate(template: typeof templates[0]) {
   }
 }
 
+async function createProjectForGenerator() {
+  if (!form.value.name || !form.value.path) return
+
+  isCreatingForGenerator.value = true
+
+  try {
+    // Create the project first (without spec)
+    await projectsAPI.create({
+      name: form.value.name,
+      path: form.value.path,
+    })
+
+    projectCreatedForGenerator.value = true
+  } catch (err: any) {
+    createError.value = err.message || 'Failed to create project for generator'
+  } finally {
+    isCreatingForGenerator.value = false
+  }
+}
+
+function onSpecGeneratorComplete(specPath: string) {
+  specGeneratorComplete.value = true
+  // The spec has been written to the project, we can proceed
+  console.log('Spec generated at:', specPath)
+}
+
 async function createProject() {
   if (!form.value.name || !form.value.path) return
 
@@ -512,14 +611,16 @@ async function createProject() {
   createError.value = ''
 
   try {
-    // Create the project
-    const project = await projectsAPI.create({
-      name: form.value.name,
-      path: form.value.path,
-    })
+    // Create the project (skip if already created for generator)
+    if (!projectCreatedForGenerator.value) {
+      await projectsAPI.create({
+        name: form.value.name,
+        path: form.value.path,
+      })
+    }
 
-    // Update prompts if app spec provided
-    if (form.value.appSpec.trim()) {
+    // Update prompts if app spec provided (only in manual mode)
+    if (specMode.value === 'manual' && form.value.appSpec.trim()) {
       try {
         await fetch(`/api/projects/${encodeURIComponent(form.value.name)}/prompts`, {
           method: 'PUT',
@@ -554,7 +655,7 @@ async function createProject() {
     }
 
     // Navigate to the new project
-    router.push(`/projects/${encodeURIComponent(project.name)}`)
+    router.push(`/projects/${encodeURIComponent(form.value.name)}`)
   } catch (err: any) {
     createError.value = err.message || 'Failed to create project'
   } finally {
