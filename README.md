@@ -46,14 +46,19 @@ You need one of the following:
 
 ### Option 1: Web UI (Recommended)
 
-**Windows:**
+**Windows (CMD):**
 ```cmd
-start_ui.bat
+nexus-ui.bat
+```
+
+**Windows (PowerShell):**
+```powershell
+.\nexus-ui.ps1
 ```
 
 **macOS / Linux:**
 ```bash
-./start_ui.sh
+./nexus-ui.sh
 ```
 
 This launches the web UI at `http://localhost:5173` with:
@@ -64,14 +69,19 @@ This launches the web UI at `http://localhost:5173` with:
 
 ### Option 2: CLI Mode
 
-**Windows:**
+**Windows (CMD):**
 ```cmd
-start.bat
+nexus.bat
+```
+
+**Windows (PowerShell):**
+```powershell
+.\nexus.ps1
 ```
 
 **macOS / Linux:**
 ```bash
-./start.sh
+./nexus.sh
 ```
 
 The start script will:
@@ -150,10 +160,12 @@ Features are stored in SQLite via SQLAlchemy and managed through an MCP server t
 
 ```
 nexus/
-├── start.bat                 # Windows CLI start script
-├── start.sh                  # macOS/Linux CLI start script
-├── start_ui.bat              # Windows Web UI start script
-├── start_ui.sh               # macOS/Linux Web UI start script
+├── nexus.bat                 # Windows (CMD) CLI start script
+├── nexus.ps1                 # Windows (PowerShell) CLI start script
+├── nexus.sh                  # macOS/Linux CLI start script
+├── nexus-ui.bat              # Windows (CMD) Web UI start script
+├── nexus-ui.ps1              # Windows (PowerShell) Web UI start script
+├── nexus-ui.sh               # macOS/Linux Web UI start script
 ├── start.py                  # CLI menu and project management
 ├── start_ui.py               # Web UI backend (FastAPI server launcher)
 ├── autonomous_agent_demo.py  # Agent entry point
@@ -263,7 +275,7 @@ cd ui
 npm run build    # Builds to ui/dist/
 ```
 
-**Note:** The `start_ui.bat`/`start_ui.sh` scripts serve the pre-built UI from `ui/dist/`. After making UI changes, run `npm run build` to see them when using the start scripts.
+**Note:** The `nexus-ui.*` scripts (`nexus-ui.bat`, `nexus-ui.ps1`, `nexus-ui.sh`) serve the pre-built UI from `ui/dist/`. After making UI changes, run `npm run build` to see them when using the start scripts.
 
 ### Tech Stack
 

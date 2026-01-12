@@ -3,7 +3,7 @@ cd "$(dirname "$0")"
 
 echo ""
 echo "========================================"
-echo "  Autonomous Coding Agent"
+echo "  Nexus - Autonomous Coding Platform"
 echo "========================================"
 echo ""
 

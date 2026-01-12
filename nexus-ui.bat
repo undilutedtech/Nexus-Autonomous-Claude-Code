@@ -1,11 +1,10 @@
 @echo off
 cd /d "%~dp0"
-REM Nexus UI Launcher for Windows
-REM This script launches the web UI for the autonomous coding agent.
+REM Nexus UI - Web Interface Launcher for Windows
 
 echo.
 echo ====================================
-echo   Nexus UI
+echo   Nexus UI - Web Interface
 echo ====================================
 echo.
 
@@ -17,6 +16,8 @@ if %ERRORLEVEL% neq 0 (
     pause
     exit /b 1
 )
+
+echo [OK] Python found
 
 REM Check if venv exists, create if not
 if not exist "venv" (

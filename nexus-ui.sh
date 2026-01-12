@@ -1,11 +1,10 @@
 #!/bin/bash
 cd "$(dirname "$0")"
-# Nexus UI Launcher for Unix/Linux/macOS
-# This script launches the web UI for the autonomous coding agent.
+# Nexus UI - Web Interface Launcher for Unix/Linux/macOS
 
 echo ""
 echo "===================================="
-echo "  Nexus UI"
+echo "  Nexus UI - Web Interface"
 echo "===================================="
 echo ""
 
@@ -20,6 +19,8 @@ if ! command -v python3 &> /dev/null; then
 else
     PYTHON_CMD="python3"
 fi
+
+echo "[OK] Python found"
 
 # Check if venv exists, create if not
 if [ ! -d "venv" ]; then
