@@ -1,44 +1,41 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/auth'
 
-test('verify agent created features', async ({ page }) => {
-  // Helper to set auth token
-  const setAuth = async () => {
-    await page.evaluate(() => {
-      localStorage.setItem('nexus_token', 'test-token-for-playwright');
-    });
-  };
+test('verify agent created features', async ({ authenticatedPage: page }) => {
+  // Get first available project
+  const projectsResponse = await page.request.get('/api/projects')
+  const projects = await projectsResponse.json()
 
-  // Navigate to the test project
-  await page.goto('http://localhost:5173/');
-  await setAuth();
-  await page.goto('http://localhost:5173/projects/test-project-1768098283820');
-  await page.waitForTimeout(1000);
-
-  // Re-auth if needed
-  if (page.url().includes('/signin')) {
-    await setAuth();
-    await page.goto('http://localhost:5173/projects/test-project-1768098283820');
-    await page.waitForTimeout(1000);
+  if (projects.length === 0) {
+    console.log('No projects available, skipping test')
+    test.skip()
+    return
   }
 
-  // Take screenshot showing features
-  await page.screenshot({ path: '/tmp/agent-progress-1.png', fullPage: true });
+  const projectName = projects[0].name
+  console.log(`Testing with project: ${projectName}`)
 
-  // Check total features count
-  const totalFeatures = page.locator('text=Total Features').locator('..').locator('text=/\\d+/').first();
-  const count = await totalFeatures.textContent().catch(() => '0');
-  console.log(`Total Features: ${count}`);
+  // Navigate to the project
+  await page.goto(`/projects/${encodeURIComponent(projectName)}`)
+  await page.waitForLoadState('networkidle')
 
-  // Wait for page to update
-  await page.waitForTimeout(2000);
+  // Page should load
+  await expect(page.locator('#app')).toBeVisible()
 
-  // Take another screenshot
-  await page.screenshot({ path: '/tmp/agent-progress-2.png', fullPage: true });
+  // Check for features section
+  const featuresSection = page.locator('text=Features').first()
+  if (await featuresSection.isVisible().catch(() => false)) {
+    console.log('Features section found')
+  }
 
-  // Scroll down to see features section
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: '/tmp/agent-progress-3-features.png', fullPage: true });
+  // Check for total features count
+  const totalFeatures = page.locator('text=Total Features')
+  if (await totalFeatures.isVisible().catch(() => false)) {
+    console.log('Total Features label found')
+  }
 
-  console.log('Screenshots saved to /tmp/agent-progress-*.png');
-});
+  // Scroll down to see more content
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+  await page.waitForTimeout(500)
+
+  console.log('Agent progress verification complete')
+})

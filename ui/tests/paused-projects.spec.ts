@@ -14,7 +14,7 @@ test('verify paused projects page', async ({ page }) => {
   });
 
   // Go to paused projects page
-  await page.goto('http://localhost:5174/projects/paused');
+  await page.goto('/projects/paused');
   await page.waitForTimeout(2000);
 
   await page.screenshot({ path: '/tmp/paused-projects.png', fullPage: true });

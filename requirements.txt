@@ -11,6 +11,7 @@ pyyaml>=6.0.0
 
 # Authentication
 passlib[bcrypt]>=1.7.4
+bcrypt>=4.0.0,<4.1  # Pin to 4.0.x for passlib compatibility
 python-jose[cryptography]>=3.3.0
 pyotp>=2.9.0
 qrcode[pil]>=7.4.0

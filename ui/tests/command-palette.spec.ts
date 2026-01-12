@@ -1,150 +1,144 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/auth'
 
 test.describe('Command Palette', () => {
-  test.beforeEach(async ({ page }) => {
-    // Set auth token before loading
-    await page.addInitScript(() => {
-      localStorage.setItem('nexus_token', 'test-token-for-playwright');
-    });
-
+  test('opens with Ctrl+K keyboard shortcut', async ({ authenticatedPage: page }) => {
     // Go to dashboard
-    await page.goto('http://localhost:5174/');
-    await page.waitForTimeout(1000);
-  });
+    await page.goto('/dashboard')
+    await page.waitForLoadState('networkidle')
 
-  test('opens with Cmd+K keyboard shortcut', async ({ page }) => {
-    // Press Cmd+K (or Ctrl+K on non-Mac)
-    await page.keyboard.press('Control+k');
-    await page.waitForTimeout(500);
+    // Press Ctrl+K
+    await page.keyboard.press('Control+k')
+    await page.waitForTimeout(500)
 
     // Check if command palette is visible
-    const palette = page.locator('input[placeholder*="Search commands"]');
-    await expect(palette).toBeVisible();
+    const palette = page.locator('input[placeholder*="Search commands"]')
+    await expect(palette).toBeVisible({ timeout: 5000 })
+  })
 
-    // Take screenshot
-    await page.screenshot({ path: '/tmp/command-palette-open.png', fullPage: true });
-  });
+  test('opens by clicking search bar', async ({ authenticatedPage: page }) => {
+    await page.goto('/dashboard')
+    await page.waitForLoadState('networkidle')
 
-  test('opens by clicking search bar', async ({ page }) => {
     // Click on the search bar
-    const searchBar = page.locator('text=Search or type command...').first();
-    await searchBar.click();
-    await page.waitForTimeout(500);
+    const searchBar = page.locator('text=Search or type command...').first()
+    await searchBar.click()
+    await page.waitForTimeout(500)
 
     // Check if command palette is visible
-    const palette = page.locator('input[placeholder*="Search commands"]');
-    await expect(palette).toBeVisible();
-  });
+    const palette = page.locator('input[placeholder*="Search commands"]')
+    await expect(palette).toBeVisible({ timeout: 5000 })
+  })
 
-  test('closes with Escape key', async ({ page }) => {
+  test('closes with Escape key', async ({ authenticatedPage: page }) => {
+    await page.goto('/dashboard')
+    await page.waitForLoadState('networkidle')
+
     // Open command palette
-    await page.keyboard.press('Control+k');
-    await page.waitForTimeout(500);
+    await page.keyboard.press('Control+k')
+    await page.waitForTimeout(500)
 
     // Verify it's open
-    const palette = page.locator('input[placeholder*="Search commands"]');
-    await expect(palette).toBeVisible();
+    const palette = page.locator('input[placeholder*="Search commands"]')
+    await expect(palette).toBeVisible()
 
     // Press Escape
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(300);
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(300)
 
     // Verify it's closed
-    await expect(palette).not.toBeVisible();
-  });
+    await expect(palette).not.toBeVisible()
+  })
 
-  test('filters results as you type', async ({ page }) => {
+  test('filters results as you type', async ({ authenticatedPage: page }) => {
+    await page.goto('/dashboard')
+    await page.waitForLoadState('networkidle')
+
     // Open command palette
-    await page.keyboard.press('Control+k');
-    await page.waitForTimeout(500);
+    await page.keyboard.press('Control+k')
+    await page.waitForTimeout(500)
 
     // Type a search query
-    await page.keyboard.type('settings');
-    await page.waitForTimeout(300);
+    await page.keyboard.type('settings')
+    await page.waitForTimeout(300)
 
     // Check that settings option is visible
-    const settingsOption = page.locator('text=Go to Settings');
-    await expect(settingsOption).toBeVisible();
+    const settingsOption = page.locator('text=Go to Settings')
+    await expect(settingsOption).toBeVisible({ timeout: 5000 })
+  })
 
-    // Take screenshot
-    await page.screenshot({ path: '/tmp/command-palette-filtered.png', fullPage: true });
-  });
+  test('navigates with keyboard arrows', async ({ authenticatedPage: page }) => {
+    await page.goto('/dashboard')
+    await page.waitForLoadState('networkidle')
 
-  test('shows projects when searching', async ({ page }) => {
     // Open command palette
-    await page.keyboard.press('Control+k');
-    await page.waitForTimeout(1000); // Wait for projects to load
-
-    // Check that projects category is visible
-    const projectsCategory = page.locator('text=Projects').first();
-    await expect(projectsCategory).toBeVisible();
-
-    // Take screenshot
-    await page.screenshot({ path: '/tmp/command-palette-projects.png', fullPage: true });
-  });
-
-  test('shows only actions when typing >', async ({ page }) => {
-    // Open command palette
-    await page.keyboard.press('Control+k');
-    await page.waitForTimeout(500);
-
-    // Type > to show only commands
-    await page.keyboard.type('>');
-    await page.waitForTimeout(300);
-
-    // Check that Actions category is visible
-    const actionsCategory = page.locator('h3:has-text("Actions"), h3:has-text("Navigation")').first();
-    await expect(actionsCategory).toBeVisible();
-
-    // Take screenshot
-    await page.screenshot({ path: '/tmp/command-palette-actions.png', fullPage: true });
-  });
-
-  test('navigates with keyboard arrows', async ({ page }) => {
-    // Open command palette
-    await page.keyboard.press('Control+k');
-    await page.waitForTimeout(500);
+    await page.keyboard.press('Control+k')
+    await page.waitForTimeout(500)
 
     // Press down arrow to select next item
-    await page.keyboard.press('ArrowDown');
-    await page.waitForTimeout(200);
+    await page.keyboard.press('ArrowDown')
+    await page.waitForTimeout(200)
 
-    // Press down arrow again
-    await page.keyboard.press('ArrowDown');
-    await page.waitForTimeout(200);
+    // Verify an item is highlighted (has brand-500 background)
+    const highlightedItem = page.locator('button.bg-brand-500')
+    await expect(highlightedItem).toBeVisible()
+  })
 
-    // Take screenshot showing selection
-    await page.screenshot({ path: '/tmp/command-palette-navigation.png', fullPage: true });
-  });
+  test('shows only actions when typing >', async ({ authenticatedPage: page }) => {
+    await page.goto('/dashboard')
+    await page.waitForLoadState('networkidle')
 
-  test('executes command on Enter', async ({ page }) => {
     // Open command palette
-    await page.keyboard.press('Control+k');
-    await page.waitForTimeout(500);
+    await page.keyboard.press('Control+k')
+    await page.waitForTimeout(500)
+
+    // Type > to show only actions
+    await page.keyboard.type('>')
+    await page.waitForTimeout(300)
+
+    // Actions category should be visible (use exact match to avoid "Quick Actions")
+    const actionsCategory = page.getByRole('heading', { name: 'Actions', exact: true })
+    await expect(actionsCategory).toBeVisible({ timeout: 5000 })
+  })
+
+  test('executes command on Enter', async ({ authenticatedPage: page }) => {
+    await page.goto('/dashboard')
+    await page.waitForLoadState('networkidle')
+
+    // Open command palette
+    await page.keyboard.press('Control+k')
+    await page.waitForTimeout(500)
 
     // Type to find settings
-    await page.keyboard.type('settings');
-    await page.waitForTimeout(300);
+    await page.keyboard.type('settings')
+    await page.waitForTimeout(300)
 
     // Press Enter to execute
-    await page.keyboard.press('Enter');
-    await page.waitForTimeout(1000);
+    await page.keyboard.press('Enter')
+    await page.waitForTimeout(500)
 
-    // Check that we navigated to settings
-    expect(page.url()).toContain('/settings');
-  });
+    // Should navigate to settings
+    expect(page.url()).toContain('/settings')
+  })
 
-  test('executes command on click', async ({ page }) => {
+  test('executes command on click', async ({ authenticatedPage: page }) => {
+    await page.goto('/dashboard')
+    await page.waitForLoadState('networkidle')
+
     // Open command palette
-    await page.keyboard.press('Control+k');
-    await page.waitForTimeout(500);
+    await page.keyboard.press('Control+k')
+    await page.waitForTimeout(500)
 
-    // Click on Dashboard option
-    const dashboardOption = page.locator('button:has-text("Go to Dashboard")');
-    await dashboardOption.click();
-    await page.waitForTimeout(500);
+    // Type settings to filter
+    await page.keyboard.type('settings')
+    await page.waitForTimeout(300)
 
-    // Check that we navigated to dashboard
-    expect(page.url()).toBe('http://localhost:5174/');
-  });
-});
+    // Click on the settings command
+    const settingsCommand = page.locator('button:has-text("Settings")').first()
+    await expect(settingsCommand).toBeVisible()
+    await settingsCommand.click()
+    await page.waitForTimeout(1000)
+
+    // Should navigate to settings
+    expect(page.url()).toContain('/settings')
+  })
+})

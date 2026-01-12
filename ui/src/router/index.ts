@@ -174,9 +174,9 @@ router.beforeEach((to, from, next) => {
   if (!isPublicRoute && !isAuthenticated) {
     // Redirect to landing if not authenticated (instead of signin)
     next({ name: 'Landing' })
-  } else if (isAuthenticated && (isLandingPage || to.name === 'Signin' || to.name === 'Signup')) {
-    // Redirect authenticated users away from landing/auth pages to dashboard
-    next({ name: 'Dashboard' })
+  } else if (isAuthenticated && (to.name === 'Signin' || to.name === 'Signup')) {
+    // Redirect authenticated users away from auth pages to landing (not dashboard)
+    next({ name: 'Landing' })
   } else {
     next()
   }

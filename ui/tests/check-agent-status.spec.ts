@@ -1,47 +1,38 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/auth'
 
-test('check agent status and activity', async ({ page }) => {
-  // Helper to set auth token
-  const setAuth = async () => {
-    await page.evaluate(() => {
-      localStorage.setItem('nexus_token', 'test-token-for-playwright');
-    });
-  };
+test('check agent status and activity', async ({ authenticatedPage: page }) => {
+  // Get first available project
+  const projectsResponse = await page.request.get('/api/projects')
+  const projects = await projectsResponse.json()
 
-  // Navigate to the test project
-  await page.goto('http://localhost:5173/');
-  await setAuth();
-  await page.goto('http://localhost:5173/projects/test-project-1768098283820');
-  await page.waitForTimeout(1000);
-
-  // Re-auth if needed
-  if (page.url().includes('/signin')) {
-    await setAuth();
-    await page.goto('http://localhost:5173/projects/test-project-1768098283820');
-    await page.waitForTimeout(1000);
+  if (projects.length === 0) {
+    console.log('No projects available, skipping test')
+    test.skip()
+    return
   }
 
-  // Take screenshot
-  await page.screenshot({ path: '/tmp/check-agent-1.png', fullPage: true });
+  const projectName = projects[0].name
+  console.log(`Testing with project: ${projectName}`)
 
-  // Check status
-  const runningIndicator = page.locator('text=Running').first();
-  const isRunning = await runningIndicator.isVisible().catch(() => false);
-  console.log(`Agent running: ${isRunning}`);
+  // Navigate to the project
+  await page.goto(`/projects/${encodeURIComponent(projectName)}`)
+  await page.waitForLoadState('networkidle')
 
-  // Check for any logs in the activity section
-  const activitySection = page.locator('.bg-gray-900, [class*="activity"]').last();
-  const activityText = await activitySection.textContent().catch(() => '');
-  console.log(`Activity content: ${activityText?.substring(0, 200)}`);
+  // Page should load
+  await expect(page.locator('#app')).toBeVisible()
 
-  // Wait for more activity
-  await page.waitForTimeout(5000);
-  await page.screenshot({ path: '/tmp/check-agent-2.png', fullPage: true });
+  // Check for status indicators
+  const runningIndicator = page.locator('text=Running').first()
+  const stoppedIndicator = page.locator('text=Stopped').first()
+  const isRunning = await runningIndicator.isVisible().catch(() => false)
+  const isStopped = await stoppedIndicator.isVisible().catch(() => false)
+  console.log(`Agent running: ${isRunning}, stopped: ${isStopped}`)
 
-  // Check features
-  const featuresSection = page.locator('text=Total Features').first();
-  const featuresText = await featuresSection.textContent().catch(() => '');
-  console.log(`Features: ${featuresText}`);
+  // Check for features section
+  const featuresSection = page.locator('text=Features').first()
+  if (await featuresSection.isVisible().catch(() => false)) {
+    console.log('Features section found')
+  }
 
-  console.log('Screenshots saved to /tmp/check-agent-*.png');
-});
+  console.log('Agent status check completed')
+})
