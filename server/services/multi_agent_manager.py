@@ -165,31 +165,37 @@ class MultiAgentManager:
             manager = self.agents[agent_id]
 
             # Register output callback
-            def output_callback(line: str):
+            async def output_callback(line: str):
                 self._broadcast_output(agent_id, line)
 
-            manager.register_output_callback(output_callback)
+            manager.add_output_callback(output_callback)
 
             # Start the agent
-            result = await manager.start(yolo_mode=yolo_mode, model=model)
+            success, message = await manager.start(yolo_mode=yolo_mode, model=model)
 
-            # Update registry
-            update_project_agent(
-                self.project_name,
-                agent_id,
-                status="running",
-                pid=manager.pid,
-                started_at=datetime.now()
-            )
-            update_project_last_run(self.project_name)
-
-            # Start completion check if not already running
-            if self.auto_stop_on_completion and not self._completion_check_task:
-                self._completion_check_task = asyncio.create_task(
-                    self._check_completion_loop()
+            if success:
+                # Update registry
+                update_project_agent(
+                    self.project_name,
+                    agent_id,
+                    status="running",
+                    pid=manager.pid,
+                    started_at=datetime.now()
                 )
+                update_project_last_run(self.project_name)
 
-            return result
+                # Start completion check if not already running
+                if self.auto_stop_on_completion and not self._completion_check_task:
+                    self._completion_check_task = asyncio.create_task(
+                        self._check_completion_loop()
+                    )
+
+            return {
+                "success": success,
+                "status": "running" if success else "stopped",
+                "message": message,
+                "pid": manager.pid if success else None
+            }
 
     async def stop_agent(self, agent_id: str) -> dict[str, Any]:
         """Stop a specific agent."""

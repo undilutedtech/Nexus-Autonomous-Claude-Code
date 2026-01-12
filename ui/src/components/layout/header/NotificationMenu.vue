@@ -108,98 +108,123 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { projectsAPI } from '@/api/client'
 
 const dropdownOpen = ref(false)
-const notifying = ref(true)
+const notifying = ref(false)
 const dropdownRef = ref(null)
 
-const notifications = ref([
-  {
-    id: 1,
-    userName: 'Terry Franci',
-    userImage: '/images/user/user-02.jpg',
-    action: 'requests permission to change',
-    project: 'Project - Nganter App',
-    type: 'Project',
-    time: '5 min ago',
-    status: 'online',
-  },
-  {
-    id: 2,
-    userName: 'Terry Franci',
-    userImage: '/images/user/user-03.jpg',
-    action: 'requests permission to change',
-    project: 'Project - Nganter App',
-    type: 'Project',
-    time: '5 min ago',
-    status: 'offline',
-  },
-  {
-    id: 3,
-    userName: 'Terry Franci',
-    userImage: '/images/user/user-04.jpg',
-    action: 'requests permission to change',
-    project: 'Project - Nganter App',
-    type: 'Project',
-    time: '5 min ago',
-    status: 'online',
-  },
-  {
-    id: 4,
-    userName: 'Terry Franci',
-    userImage: '/images/user/user-05.jpg',
-    action: 'requests permission to change',
-    project: 'Project - Nganter App',
-    type: 'Project',
-    time: '5 min ago',
-    status: 'online',
-  },
-  {
-    id: 5,
-    userName: 'Terry Franci',
-    userImage: '/images/user/user-06.jpg',
-    action: 'requests permission to change',
-    project: 'Project - Nganter App',
-    type: 'Project',
-    time: '5 min ago',
-    status: 'offline',
-  },
-  {
-    id: 6,
-    userName: 'Terry Franci',
-    userImage: '/images/user/user-07.jpg',
-    action: 'requests permission to change',
-    project: 'Project - Nganter App',
-    type: 'Project',
-    time: '5 min ago',
-    status: 'online',
-  },
-  {
-    id: 7,
-    userName: 'Terry Franci',
-    userImage: '/images/user/user-08.jpg',
-    action: 'requests permission to change',
-    project: 'Project - Nganter App',
-    type: 'Project',
-    time: '5 min ago',
-    status: 'online',
-  },
-  {
-    id: 7,
-    userName: 'Terry Franci',
-    userImage: '/images/user/user-09.jpg',
-    action: 'requests permission to change',
-    project: 'Project - Nganter App',
-    type: 'Project',
-    time: '5 min ago',
-    status: 'online',
-  },
-  // Add more notifications here...
-])
+// Real project notifications
+const notifications = ref([])
+
+// Notification icons by type
+const getNotificationIcon = (type) => {
+  switch (type) {
+    case 'feature_complete': return '✅'
+    case 'agent_started': return '🚀'
+    case 'agent_stopped': return '⏹️'
+    case 'project_finished': return '🎉'
+    case 'error': return '❌'
+    default: return '📋'
+  }
+}
+
+// Load real notifications from projects
+async function loadNotifications() {
+  try {
+    const projects = await projectsAPI.list()
+
+    // Generate notifications from recent project activity
+    const newNotifications = []
+    let id = 1
+
+    for (const project of projects) {
+      // Add notification for projects with 100% completion
+      if (project.stats.percentage === 100) {
+        newNotifications.push({
+          id: id++,
+          userName: 'Nexus Agent',
+          userImage: '/images/logo/logo-icon.svg',
+          action: 'completed all features in',
+          project: project.name,
+          type: 'project_finished',
+          time: 'Recently',
+          status: 'online',
+        })
+      }
+
+      // Add notification for in-progress features
+      if (project.stats.in_progress > 0) {
+        newNotifications.push({
+          id: id++,
+          userName: 'Coding Agent',
+          userImage: '/images/logo/logo-icon.svg',
+          action: `is implementing ${project.stats.in_progress} feature(s) in`,
+          project: project.name,
+          type: 'agent_started',
+          time: 'Now',
+          status: 'online',
+        })
+        notifying.value = true
+      }
+
+      // Add notification for pending features
+      if (project.stats.total - project.stats.passing > 0 && project.stats.in_progress === 0) {
+        const pending = project.stats.total - project.stats.passing
+        newNotifications.push({
+          id: id++,
+          userName: 'Project',
+          userImage: '/images/logo/logo-icon.svg',
+          action: `has ${pending} pending feature(s) in`,
+          project: project.name,
+          type: 'pending',
+          time: 'Waiting',
+          status: 'offline',
+        })
+      }
+    }
+
+    // Sort by status (online/active first)
+    notifications.value = newNotifications.sort((a, b) =>
+      a.status === 'online' ? -1 : 1
+    ).slice(0, 10)
+
+    if (notifications.value.length === 0) {
+      notifications.value = [{
+        id: 1,
+        userName: 'Nexus',
+        userImage: '/images/logo/logo-icon.svg',
+        action: 'No recent activity.',
+        project: 'Create a new project to get started',
+        type: 'info',
+        time: '',
+        status: 'offline',
+      }]
+    }
+  } catch (err) {
+    console.error('Failed to load notifications:', err)
+    notifications.value = [{
+      id: 1,
+      userName: 'System',
+      userImage: '/images/logo/logo-icon.svg',
+      action: 'Unable to load notifications',
+      project: '',
+      type: 'error',
+      time: '',
+      status: 'offline',
+    }]
+  }
+}
+
+// Refresh notifications periodically
+let refreshInterval = null
 
 const toggleDropdown = () => {
   dropdownOpen.value = !dropdownOpen.value
-  notifying.value = false
+  if (dropdownOpen.value) {
+    notifying.value = false
+    loadNotifications() // Refresh when opening
+  }
 }
 
 const closeDropdown = () => {
@@ -214,23 +239,25 @@ const handleClickOutside = (event) => {
 
 const handleItemClick = (event) => {
   event.preventDefault()
-  // Handle the item click action here
-  console.log('Notification item clicked')
   closeDropdown()
 }
 
 const handleViewAllClick = (event) => {
   event.preventDefault()
-  // Handle the "View All Notification" action here
-  console.log('View All Notifications clicked')
   closeDropdown()
 }
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  loadNotifications()
+  // Refresh notifications every 30 seconds
+  refreshInterval = setInterval(loadNotifications, 30000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+  }
 })
 </script>

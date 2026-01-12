@@ -596,12 +596,18 @@
         </div>
       </div>
 
-      <!-- Assistant Chat Panel -->
-      <div
-        v-if="showAssistant"
-        class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] lg:p-6"
-      >
-        <div class="flex items-center justify-between mb-4">
+      <!-- Assistant Chat Panel - Fixed Sidebar with Backdrop -->
+      <Transition name="slide">
+        <div v-if="showAssistant" class="fixed inset-0 z-50 flex justify-end">
+          <!-- Backdrop -->
+          <div
+            class="absolute inset-0 bg-black/20"
+            @click="showAssistant = false; disconnectAssistant()"
+          ></div>
+          <!-- Sidebar -->
+          <div class="relative w-96 h-full bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 shadow-2xl flex flex-col">
+        <!-- Header -->
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
           <div class="flex items-center gap-2">
             <div class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-500/20">
               <svg class="w-4 h-4 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -609,7 +615,7 @@
               </svg>
             </div>
             <div>
-              <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
+              <h3 class="text-base font-semibold text-gray-800 dark:text-white/90">
                 Project Assistant
               </h3>
               <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -628,7 +634,7 @@
         </div>
 
         <!-- Chat Messages -->
-        <div class="h-64 overflow-y-auto mb-4 space-y-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+        <div class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-gray-800/50">
           <div v-if="assistantMessages.length === 0" class="text-center text-gray-500 dark:text-gray-400 py-8">
             <svg class="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -658,26 +664,29 @@
         </div>
 
         <!-- Chat Input -->
-        <form @submit.prevent="sendAssistantMessage" class="flex gap-2">
-          <input
-            v-model="assistantInput"
-            type="text"
-            placeholder="Ask about your project..."
-            :disabled="assistantLoading"
-            class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white disabled:opacity-50"
-          />
-          <button
-            type="submit"
-            :disabled="assistantLoading || !assistantInput.trim()"
-            class="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
-            Send
-          </button>
+        <form @submit.prevent="sendAssistantMessage" class="p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+          <div class="flex gap-2">
+            <input
+              v-model="assistantInput"
+              type="text"
+              placeholder="Ask about your project..."
+              :disabled="assistantLoading"
+              class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white disabled:opacity-50"
+            />
+            <button
+              type="submit"
+              :disabled="assistantLoading || !assistantInput.trim()"
+              class="inline-flex items-center justify-center rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            </button>
+          </div>
         </form>
-      </div>
+          </div>
+        </div>
+      </Transition>
     </div>
 
     <!-- Add Feature Modal -->
@@ -960,14 +969,48 @@ function handleClickOutside(event: MouseEvent) {
   }
 }
 
+// Auto-refresh interval for live updates
+let refreshInterval: ReturnType<typeof setInterval> | null = null
+
+function startAutoRefresh() {
+  if (refreshInterval) return
+  refreshInterval = setInterval(async () => {
+    // Refresh features and project status every 5 seconds while agent is running
+    if (isAgentRunning.value) {
+      await Promise.all([fetchFeatures(), fetchProject()])
+    }
+  }, 5000)
+}
+
+function stopAutoRefresh() {
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+    refreshInterval = null
+  }
+}
+
+// Watch agent status to start/stop auto-refresh
+watch(isAgentRunning, (running) => {
+  if (running) {
+    startAutoRefresh()
+  } else {
+    stopAutoRefresh()
+  }
+})
+
 onMounted(async () => {
   document.addEventListener('click', handleClickOutside)
   await Promise.all([fetchProject(), fetchFeatures(), fetchAgentStatus(), fetchProjectConfig()])
+  // Start auto-refresh if agent is already running
+  if (isAgentRunning.value) {
+    startAutoRefresh()
+  }
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   disconnectAssistant()
+  stopAutoRefresh()
 })
 
 async function fetchProject() {
@@ -1224,7 +1267,7 @@ function connectAssistant() {
 
         case 'tool_call':
           // Show tool usage
-          const toolMsg = `[Using tool: ${message.name}]`
+          const toolMsg = `[Using tool: ${message.tool}]`
           if (assistantMessages.value.length > 0 &&
               assistantMessages.value[assistantMessages.value.length - 1].role === 'assistant') {
             assistantMessages.value[assistantMessages.value.length - 1].content += '\n' + toolMsg
@@ -1234,6 +1277,7 @@ function connectAssistant() {
           break
 
         case 'done':
+        case 'response_done':
           assistantLoading.value = false
           break
 
@@ -1298,3 +1342,20 @@ function sendAssistantMessage() {
   }
 }
 </script>
+
+<style scoped>
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  opacity: 0;
+}
+
+.slide-enter-from > div:last-child,
+.slide-leave-to > div:last-child {
+  transform: translateX(100%);
+}
+</style>

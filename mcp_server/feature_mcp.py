@@ -161,23 +161,30 @@ def feature_get_stats() -> str:
 def feature_get_next() -> str:
     """Get the highest-priority pending feature to work on.
 
-    Returns the feature with the lowest priority number that has passes=false.
+    Returns the feature with the lowest priority number that has passes=false
+    AND is not currently in-progress by another agent.
     Use this at the start of each coding session to determine what to implement next.
 
     Returns:
         JSON with feature details (id, priority, category, name, description, steps, passes, in_progress)
-        or error message if all features are passing.
+        or error message if all features are passing or being worked on.
     """
     session = get_session()
     try:
+        # Filter out both passing AND in-progress features to support parallel agents
         feature = (
             session.query(Feature)
             .filter(Feature.passes == False)
+            .filter(Feature.in_progress == False)
             .order_by(Feature.priority.asc(), Feature.id.asc())
             .first()
         )
 
         if feature is None:
+            # Check if there are any non-passing features at all
+            any_pending = session.query(Feature).filter(Feature.passes == False).first()
+            if any_pending:
+                return json.dumps({"error": "All pending features are currently being worked on by other agents. Wait for them to complete."})
             return json.dumps({"error": "All features are passing! No more work to do."})
 
         return json.dumps(feature.to_dict(), indent=2)

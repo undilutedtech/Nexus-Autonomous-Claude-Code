@@ -163,7 +163,20 @@ onMounted(async () => {
 async function fetchProjects() {
   isLoading.value = true
   try {
-    projects.value = await projectsAPI.getByStatus('finished')
+    // Get both explicitly finished projects AND projects with 100% completion
+    const [finishedProjects, allProjects] = await Promise.all([
+      projectsAPI.getByStatus('finished'),
+      projectsAPI.list()
+    ])
+
+    // Find projects with 100% completion that aren't already in finished list
+    const completedProjects = allProjects.filter(p =>
+      p.stats.percentage === 100 &&
+      !finishedProjects.some(f => f.name === p.name)
+    )
+
+    // Combine both lists
+    projects.value = [...finishedProjects, ...completedProjects]
   } catch (err) {
     console.error('Failed to fetch finished projects:', err)
   } finally {
