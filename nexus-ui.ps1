@@ -46,11 +46,90 @@ if (Test-Path $activateScript) {
 Write-Host "Installing dependencies..."
 & pip install -r requirements.txt --quiet
 
+# Check if Claude CLI is available (required for spec generator)
+$claudePath = Get-Command claude -ErrorAction SilentlyContinue
+if (-not $claudePath) {
+    Write-Host "[!] Claude CLI not found" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Claude CLI is required for the Spec Generator feature."
+    Write-Host ""
+
+    # Check if npm is available for installation
+    $npmPath = Get-Command npm -ErrorAction SilentlyContinue
+    if ($npmPath) {
+        $installChoice = Read-Host "Would you like to install Claude CLI now via npm? (y/n)"
+        if ($installChoice -match "^[Yy]$") {
+            Write-Host ""
+            Write-Host "Installing Claude CLI via npm (this may take a minute)..." -ForegroundColor Cyan
+            try {
+                & npm install -g @anthropic-ai/claude-code 2>&1 | Out-Null
+
+                # Verify installation
+                $claudePath = Get-Command claude -ErrorAction SilentlyContinue
+                if ($claudePath) {
+                    Write-Host "[OK] Claude CLI installed successfully!" -ForegroundColor Green
+                    Write-Host ""
+                    Write-Host "You need to authenticate with Claude before using the Spec Generator."
+                    Write-Host "Run 'claude login' to authenticate, or it will prompt you when needed."
+                    Write-Host ""
+                } else {
+                    Write-Host "[!] Installation may have succeeded but 'claude' not found in PATH" -ForegroundColor Yellow
+                    Write-Host "Try restarting your terminal and running this script again."
+                }
+            } catch {
+                Write-Host "[ERROR] Failed to install Claude CLI: $_" -ForegroundColor Red
+                Write-Host "You can install manually from: https://claude.ai/download"
+            }
+        } else {
+            Write-Host ""
+            Write-Host "Skipping Claude CLI installation."
+            Write-Host "You can install later from: https://claude.ai/download"
+            Write-Host "Or run: npm install -g @anthropic-ai/claude-code"
+        }
+    } else {
+        Write-Host "To install Claude CLI, you can either:"
+        Write-Host "  1. Download from: https://claude.ai/download"
+        Write-Host "  2. Install Node.js, then run: npm install -g @anthropic-ai/claude-code"
+    }
+    Write-Host ""
+} else {
+    Write-Host "[OK] Claude CLI found" -ForegroundColor Green
+
+    # Check for updates if npm is available
+    $npmPath = Get-Command npm -ErrorAction SilentlyContinue
+    if ($npmPath) {
+        Write-Host "     Checking for updates..." -ForegroundColor Gray
+        try {
+            # Get current version
+            $currentVersion = & claude --version 2>&1 | Select-String -Pattern "\d+\.\d+\.\d+" | ForEach-Object { $_.Matches[0].Value }
+
+            # Check latest version from npm
+            $latestVersion = & npm view @anthropic-ai/claude-code version 2>&1
+
+            if ($currentVersion -and $latestVersion -and ($currentVersion -ne $latestVersion)) {
+                Write-Host "[!] Update available: $currentVersion -> $latestVersion" -ForegroundColor Yellow
+                $updateChoice = Read-Host "Would you like to update Claude CLI? (y/n)"
+                if ($updateChoice -match "^[Yy]$") {
+                    Write-Host "Updating Claude CLI..." -ForegroundColor Cyan
+                    & npm install -g @anthropic-ai/claude-code@latest 2>&1 | Out-Null
+                    Write-Host "[OK] Claude CLI updated!" -ForegroundColor Green
+                }
+            } else {
+                Write-Host "     Up to date ($currentVersion)" -ForegroundColor Gray
+            }
+        } catch {
+            # Silently ignore update check failures
+        }
+    }
+}
+
 # Check if Node.js is available (for UI)
 $nodePath = Get-Command node -ErrorAction SilentlyContinue
 if (-not $nodePath) {
     Write-Host "[WARNING] Node.js not found - UI may not work properly" -ForegroundColor Yellow
     Write-Host "Install from https://nodejs.org"
+} else {
+    Write-Host "[OK] Node.js found" -ForegroundColor Green
 }
 
 # Run the Python launcher

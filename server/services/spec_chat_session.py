@@ -89,20 +89,28 @@ class SpecChatSession:
 
         Yields message chunks as they stream in.
         """
+        print(f"[SPEC SESSION] start() called for project: {self.project_name}")
+        print(f"[SPEC SESSION] Project directory: {self.project_dir}")
+
         # Load the create-spec skill
         skill_path = ROOT_DIR / ".claude" / "commands" / "create-spec.md"
+        print(f"[SPEC SESSION] Looking for skill at: {skill_path}")
 
         if not skill_path.exists():
+            print(f"[SPEC SESSION] ERROR: Skill file not found!")
             yield {
                 "type": "error",
                 "content": f"Spec creation skill not found at {skill_path}"
             }
             return
 
+        print("[SPEC SESSION] Skill file found, reading...")
         try:
             skill_content = skill_path.read_text(encoding="utf-8")
+            print(f"[SPEC SESSION] Skill content loaded ({len(skill_content)} chars)")
         except UnicodeDecodeError:
             skill_content = skill_path.read_text(encoding="utf-8", errors="replace")
+            print("[SPEC SESSION] Skill content loaded (with encoding fallback)")
 
         # Ensure project directory exists (like CLI does in start.py)
         self.project_dir.mkdir(parents=True, exist_ok=True)
@@ -143,7 +151,21 @@ class SpecChatSession:
         # Use Opus for best quality spec generation
         # Use system CLI to avoid bundled Bun runtime crash (exit code 3) on Windows
         system_cli = shutil.which("claude")
+
+        # Check if Claude CLI is available
+        if not system_cli:
+            print("[SPEC SESSION] ERROR: Claude CLI not found in PATH!")
+            logger.error("Claude CLI not found in PATH")
+            yield {
+                "type": "error",
+                "content": "Claude CLI not found. Please install Claude CLI and ensure it's in your PATH. Download from: https://claude.ai/download"
+            }
+            return
+
+        print(f"[SPEC SESSION] Claude CLI found at: {system_cli}")
+
         try:
+            print("[SPEC SESSION] Creating Claude SDK client...")
             self.client = ClaudeSDKClient(
                 options=ClaudeAgentOptions(
                     model="claude-opus-4-5-20251101",
@@ -161,10 +183,23 @@ class SpecChatSession:
                     settings=str(settings_file.resolve()),
                 )
             )
+            print("[SPEC SESSION] Claude SDK client created, entering context...")
             # Enter the async context and track it
             await self.client.__aenter__()
             self._client_entered = True
+            print("[SPEC SESSION] Claude SDK client initialized successfully!")
+        except FileNotFoundError as e:
+            print(f"[SPEC SESSION] ERROR: Claude CLI executable not found: {e}")
+            logger.exception("Claude CLI executable not found")
+            yield {
+                "type": "error",
+                "content": f"Claude CLI executable not found at {system_cli}. Please reinstall Claude CLI."
+            }
+            return
         except Exception as e:
+            print(f"[SPEC SESSION] ERROR: Failed to create Claude client: {e}")
+            import traceback
+            traceback.print_exc()
             logger.exception("Failed to create Claude client")
             yield {
                 "type": "error",
@@ -173,12 +208,20 @@ class SpecChatSession:
             return
 
         # Start the conversation - Claude will send the Phase 1 greeting
+        print("[SPEC SESSION] Starting conversation with Claude...")
         try:
+            chunk_count = 0
             async for chunk in self._query_claude("Begin the spec creation process."):
+                chunk_count += 1
+                print(f"[SPEC SESSION] Yielding chunk #{chunk_count}: {chunk.get('type', 'unknown')}")
                 yield chunk
             # Signal that the response is complete (for UI to hide loading indicator)
+            print(f"[SPEC SESSION] Conversation complete, yielded {chunk_count} chunks")
             yield {"type": "response_done"}
         except Exception as e:
+            print(f"[SPEC SESSION] ERROR: Failed to start spec chat: {e}")
+            import traceback
+            traceback.print_exc()
             logger.exception("Failed to start spec chat")
             yield {
                 "type": "error",
@@ -249,7 +292,10 @@ class SpecChatSession:
         We only signal spec_complete when BOTH files are verified on disk.
         """
         if not self.client:
+            print("[SPEC SESSION] _query_claude called but client is None!")
             return
+
+        print(f"[SPEC SESSION] _query_claude: Sending message ({len(message)} chars)")
 
         # Build the message content
         if attachments and len(attachments) > 0:
@@ -273,11 +319,14 @@ class SpecChatSession:
 
             # Send multimodal content to Claude using async generator format
             # The SDK's query() accepts AsyncIterable[dict] for custom message formats
+            print(f"[SPEC SESSION] Sending multimodal message with {len(attachments)} image(s)...")
             await self.client.query(_make_multimodal_message(content_blocks))
-            logger.info(f"Sent multimodal message with {len(attachments)} image(s)")
+            print("[SPEC SESSION] Multimodal query sent successfully")
         else:
             # Text-only message: use string format
+            print("[SPEC SESSION] Sending text-only query...")
             await self.client.query(message)
+            print("[SPEC SESSION] Text query sent successfully")
 
         current_text = ""
 
@@ -297,8 +346,12 @@ class SpecChatSession:
         spec_path = None
 
         # Stream the response using receive_response
+        print("[SPEC SESSION] Starting to receive response from Claude...")
+        msg_count = 0
         async for msg in self.client.receive_response():
+            msg_count += 1
             msg_type = type(msg).__name__
+            print(f"[SPEC SESSION] Received message #{msg_count}: {msg_type}")
 
             if msg_type == "AssistantMessage" and hasattr(msg, "content"):
                 # Process content blocks in the assistant message

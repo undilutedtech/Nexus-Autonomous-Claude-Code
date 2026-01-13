@@ -1,0 +1,32 @@
+{
+  "sandbox": {
+    "enabled": false
+  },
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Read(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "WebFetch",
+      "WebSearch",
+      "mcp__features__feature_get_stats",
+      "mcp__features__feature_get_next",
+      "mcp__features__feature_get_for_regression",
+      "mcp__features__feature_skip",
+      "mcp__features__feature_clear_in_progress",
+      "mcp__agent-control__agent_get_status",
+      "mcp__agent-control__agent_start",
+      "mcp__agent-control__agent_stop",
+      "mcp__agent-control__agent_pause",
+      "mcp__agent-control__agent_resume",
+      "mcp__agent-control__agent_skip_feature",
+      "mcp__agent-control__agent_clear_stuck",
+      "mcp__agent-control__agent_inject_context",
+      "mcp__agent-control__agent_clear_context",
+      "mcp__agent-control__agent_get_context",
+      "mcp__agent-control__agent_get_progress",
+      "mcp__agent-control__agent_reset_stuck_detection"
+    ]
+  }
+}

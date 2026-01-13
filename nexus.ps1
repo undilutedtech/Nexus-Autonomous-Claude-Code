@@ -13,17 +13,82 @@ Write-Host ""
 # Check if Claude CLI is installed
 $claudePath = Get-Command claude -ErrorAction SilentlyContinue
 if (-not $claudePath) {
-    Write-Host "[ERROR] Claude CLI not found" -ForegroundColor Red
+    Write-Host "[!] Claude CLI not found" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "Please install Claude CLI first:"
-    Write-Host "  https://claude.ai/download"
+    Write-Host "Claude CLI is required to run Nexus."
     Write-Host ""
-    Write-Host "Then run this script again."
-    Read-Host "Press Enter to exit"
-    exit 1
+
+    # Check if npm is available for installation
+    $npmPath = Get-Command npm -ErrorAction SilentlyContinue
+    if ($npmPath) {
+        $installChoice = Read-Host "Would you like to install Claude CLI now via npm? (y/n)"
+        if ($installChoice -match "^[Yy]$") {
+            Write-Host ""
+            Write-Host "Installing Claude CLI via npm (this may take a minute)..." -ForegroundColor Cyan
+            try {
+                & npm install -g @anthropic-ai/claude-code 2>&1 | Out-Null
+
+                # Verify installation
+                $claudePath = Get-Command claude -ErrorAction SilentlyContinue
+                if ($claudePath) {
+                    Write-Host "[OK] Claude CLI installed successfully!" -ForegroundColor Green
+                } else {
+                    Write-Host "[!] Installation may have succeeded but 'claude' not found in PATH" -ForegroundColor Yellow
+                    Write-Host "Try restarting your terminal and running this script again."
+                    Read-Host "Press Enter to exit"
+                    exit 1
+                }
+            } catch {
+                Write-Host "[ERROR] Failed to install Claude CLI: $_" -ForegroundColor Red
+                Write-Host "You can install manually from: https://claude.ai/download"
+                Read-Host "Press Enter to exit"
+                exit 1
+            }
+        } else {
+            Write-Host ""
+            Write-Host "Please install Claude CLI first:"
+            Write-Host "  1. Download from: https://claude.ai/download"
+            Write-Host "  2. Or run: npm install -g @anthropic-ai/claude-code"
+            Read-Host "Press Enter to exit"
+            exit 1
+        }
+    } else {
+        Write-Host "Please install Claude CLI first:"
+        Write-Host "  1. Download from: https://claude.ai/download"
+        Write-Host "  2. Install Node.js, then run: npm install -g @anthropic-ai/claude-code"
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
 }
 
 Write-Host "[OK] Claude CLI found" -ForegroundColor Green
+
+# Check for updates if npm is available
+$npmPath = Get-Command npm -ErrorAction SilentlyContinue
+if ($npmPath) {
+    Write-Host "     Checking for updates..." -ForegroundColor Gray
+    try {
+        # Get current version
+        $currentVersion = & claude --version 2>&1 | Select-String -Pattern "\d+\.\d+\.\d+" | ForEach-Object { $_.Matches[0].Value }
+
+        # Get latest version from npm
+        $latestVersion = & npm view @anthropic-ai/claude-code version 2>&1
+
+        if ($currentVersion -and $latestVersion -and ($currentVersion -ne $latestVersion)) {
+            Write-Host "[!] Update available: $currentVersion -> $latestVersion" -ForegroundColor Yellow
+            $updateChoice = Read-Host "Would you like to update Claude CLI? (y/n)"
+            if ($updateChoice -match "^[Yy]$") {
+                Write-Host "Updating Claude CLI..." -ForegroundColor Cyan
+                & npm install -g @anthropic-ai/claude-code@latest 2>&1 | Out-Null
+                Write-Host "[OK] Claude CLI updated!" -ForegroundColor Green
+            }
+        } else {
+            Write-Host "     Up to date ($currentVersion)" -ForegroundColor Gray
+        }
+    } catch {
+        # Silently ignore update check failures
+    }
+}
 
 # Check if user has credentials
 $claudeCreds = Join-Path $env:USERPROFILE ".claude\.credentials.json"

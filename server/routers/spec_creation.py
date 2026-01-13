@@ -216,6 +216,8 @@ async def spec_chat_websocket(websocket: WebSocket, project_name: str):
 
                 elif msg_type == "start":
                     # Create and start a new session
+                    print(f"[SPEC] Starting session for project: {project_name}")
+                    print(f"[SPEC] Project directory: {project_dir}")
                     session = await create_session(project_name, project_dir)
 
                     # Track spec completion state
@@ -223,7 +225,12 @@ async def spec_chat_websocket(websocket: WebSocket, project_name: str):
                     spec_path = None
 
                     # Stream the initial greeting
+                    print("[SPEC] Starting to stream initial response...")
+                    chunk_count = 0
                     async for chunk in session.start():
+                        chunk_count += 1
+                        chunk_type = chunk.get("type", "unknown")
+                        print(f"[SPEC] Received chunk #{chunk_count}: type={chunk_type}")
                         # Track spec_complete but don't send complete yet
                         if chunk.get("type") == "spec_complete":
                             spec_complete_received = True
@@ -239,6 +246,8 @@ async def spec_chat_websocket(websocket: WebSocket, project_name: str):
                             continue
 
                         await websocket.send_json(chunk)
+
+                    print(f"[SPEC] Finished streaming. Total chunks received: {chunk_count}")
 
                 elif msg_type == "message":
                     # User sent a message
