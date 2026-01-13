@@ -535,7 +535,18 @@ const templates = [
 // Computed
 const canProceed = computed(() => {
   if (currentStep.value === 0) {
+    // Step 1: Need project name and path
     return form.value.name.trim() && form.value.path.trim()
+  }
+  if (currentStep.value === 1) {
+    // Step 2: Specification
+    if (specMode.value === 'generator') {
+      // AI Generator mode: require spec generation to be complete
+      return specGeneratorComplete.value
+    } else {
+      // Manual mode: require spec text (or allow empty to skip)
+      return true
+    }
   }
   return true
 })

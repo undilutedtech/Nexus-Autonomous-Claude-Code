@@ -13,23 +13,33 @@ async function signup(page: Page): Promise<string> {
   const suffix = testUserCount++
   const email = `testuser${timestamp}${suffix}@test.com`
   const username = `testuser${timestamp}${suffix}`
+  const fullName = `Test User ${suffix}`
   const password = 'Test1234!'
 
   await page.goto('/signup')
   await page.waitForLoadState('networkidle')
 
+  // Fill in the signup form - order matters
+  await page.locator('#fullName').fill(fullName)
   await page.locator('#email').fill(email)
   await page.locator('#username').fill(username)
   await page.locator('#password').fill(password)
   await page.locator('#confirmPassword').fill(password)
+
+  // Click submit
   await page.click('button[type="submit"]')
 
   // Wait for redirect after successful signup
   await page.waitForTimeout(2000)
 
-  // Navigate to dashboard to ensure we're on an authenticated page
-  await page.goto('/dashboard')
-  await page.waitForLoadState('networkidle')
+  // Wait for navigation to dashboard
+  try {
+    await page.waitForURL('**/dashboard', { timeout: 10000 })
+  } catch (e) {
+    // If not redirected, try navigating manually
+    await page.goto('/dashboard')
+    await page.waitForLoadState('networkidle')
+  }
 
   // Get the token from localStorage
   const token = await page.evaluate(() => localStorage.getItem('nexus_token'))

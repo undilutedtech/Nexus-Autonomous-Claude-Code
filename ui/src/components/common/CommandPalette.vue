@@ -215,6 +215,42 @@ const LightningIcon: FunctionalComponent = () => h('svg', { fill: 'none', stroke
   h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M13 10V3L4 14h7v7l9-11h-7z' })
 ])
 
+const MoonIcon: FunctionalComponent = () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+  h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z' })
+])
+
+const SunIcon: FunctionalComponent = () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+  h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z' })
+])
+
+const LogoutIcon: FunctionalComponent = () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+  h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1' })
+])
+
+const TrashIcon: FunctionalComponent = () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+  h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' })
+])
+
+const ClipboardIcon: FunctionalComponent = () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+  h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' })
+])
+
+const CheckCircleIcon: FunctionalComponent = () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+  h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' })
+])
+
+const ExternalLinkIcon: FunctionalComponent = () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+  h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14' })
+])
+
+const TerminalIcon: FunctionalComponent = () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+  h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' })
+])
+
+const SparklesIcon: FunctionalComponent = () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+  h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z' })
+])
+
 interface CommandItem {
   id: string
   name: string
@@ -236,121 +272,218 @@ const activeItemIndex = ref(0)
 const itemRefs = ref<Map<string, HTMLElement>>(new Map())
 const projects = ref<Array<{ name: string; path: string }>>([])
 
+// Theme state
+const isDarkMode = ref(document.documentElement.classList.contains('dark'))
+
+function toggleDarkMode() {
+  isDarkMode.value = !isDarkMode.value
+  if (isDarkMode.value) {
+    document.documentElement.classList.add('dark')
+    localStorage.setItem('theme', 'dark')
+  } else {
+    document.documentElement.classList.remove('dark')
+    localStorage.setItem('theme', 'light')
+  }
+}
+
+function handleSignOut() {
+  localStorage.removeItem('auth_token')
+  localStorage.removeItem('user')
+  router.push('/signin')
+}
+
+function copyCurrentUrl() {
+  navigator.clipboard.writeText(window.location.href)
+}
+
 // Base commands
 const baseCommands: CommandItem[] = [
   // Navigation
   {
     id: 'nav-dashboard',
-    name: 'Go to Dashboard',
-    description: 'View the main dashboard',
+    name: 'Dashboard',
+    description: 'View overview and recent activity',
     category: 'Navigation',
     icon: HomeIcon,
-    action: () => router.push('/'),
+    action: () => router.push('/dashboard'),
     shortcut: '⌘D',
-    keywords: ['home', 'main'],
+    keywords: ['home', 'main', 'overview'],
   },
   {
     id: 'nav-projects',
-    name: 'Go to Projects',
-    description: 'View all projects',
+    name: 'All Projects',
+    description: 'Browse and manage all projects',
     category: 'Navigation',
     icon: FolderIcon,
     action: () => router.push('/projects'),
     shortcut: '⌘P',
-    keywords: ['list', 'all'],
+    keywords: ['list', 'browse'],
+  },
+  {
+    id: 'nav-in-progress',
+    name: 'Active Projects',
+    description: 'Projects currently being built by agents',
+    category: 'Navigation',
+    icon: LightningIcon,
+    action: () => router.push('/projects/in-progress'),
+    keywords: ['running', 'active', 'building', 'working'],
+  },
+  {
+    id: 'nav-paused',
+    name: 'Paused Projects',
+    description: 'Projects on hold',
+    category: 'Navigation',
+    icon: PauseIcon,
+    action: () => router.push('/projects/paused'),
+    keywords: ['stopped', 'halted', 'waiting'],
+  },
+  {
+    id: 'nav-finished',
+    name: 'Completed Projects',
+    description: 'Successfully finished projects',
+    category: 'Navigation',
+    icon: CheckCircleIcon,
+    action: () => router.push('/projects/finished'),
+    keywords: ['done', 'complete', 'success'],
+  },
+  {
+    id: 'nav-overview',
+    name: 'Projects Overview',
+    description: 'Aggregate stats and metrics',
+    category: 'Navigation',
+    icon: ChartIcon,
+    action: () => router.push('/projects/overview'),
+    keywords: ['stats', 'summary', 'metrics'],
   },
   {
     id: 'nav-analytics',
-    name: 'Go to Analytics',
-    description: 'View analytics dashboard',
+    name: 'Analytics',
+    description: 'Usage statistics and insights',
     category: 'Navigation',
     icon: ChartIcon,
     action: () => router.push('/analytics'),
-    keywords: ['stats', 'metrics'],
-  },
-  {
-    id: 'nav-settings',
-    name: 'Go to Settings',
-    description: 'Manage your settings',
-    category: 'Navigation',
-    icon: CogIcon,
-    action: () => router.push('/settings'),
-    keywords: ['config', 'preferences'],
-  },
-  {
-    id: 'nav-profile',
-    name: 'Go to Profile',
-    description: 'View your profile',
-    category: 'Navigation',
-    icon: UserIcon,
-    action: () => router.push('/profile'),
-    keywords: ['account', 'user'],
+    keywords: ['stats', 'metrics', 'usage', 'reports'],
   },
   {
     id: 'nav-docs',
-    name: 'Go to Documentation',
-    description: 'View documentation',
+    name: 'Documentation',
+    description: 'Guides and API reference',
     category: 'Navigation',
     icon: DocumentIcon,
     action: () => router.push('/docs'),
-    keywords: ['help', 'guide'],
+    shortcut: '⌘/',
+    keywords: ['help', 'guide', 'docs', 'api'],
   },
-  // Actions
+  {
+    id: 'nav-settings',
+    name: 'Settings',
+    description: 'Configure app preferences',
+    category: 'Navigation',
+    icon: CogIcon,
+    action: () => router.push('/settings'),
+    shortcut: '⌘,',
+    keywords: ['config', 'preferences', 'options'],
+  },
+  {
+    id: 'nav-profile',
+    name: 'Profile',
+    description: 'View and edit your profile',
+    category: 'Navigation',
+    icon: UserIcon,
+    action: () => router.push('/profile'),
+    keywords: ['account', 'user', 'me'],
+  },
+
+  // Actions - Project
   {
     id: 'action-new-project',
     name: 'Create New Project',
-    description: 'Start a new coding project',
+    description: 'Start building a new application',
     category: 'Actions',
     icon: PlusIcon,
     action: () => router.push('/projects/new'),
     shortcut: '⌘N',
-    keywords: ['add', 'create'],
+    keywords: ['add', 'create', 'new', 'start'],
   },
+
+  // Actions - Theme
   {
-    id: 'action-overview',
-    name: 'Projects Overview',
-    description: 'View aggregate project stats',
+    id: 'action-toggle-theme',
+    name: 'Toggle Dark Mode',
+    description: 'Switch between light and dark theme',
     category: 'Actions',
-    icon: ChartIcon,
-    action: () => router.push('/projects/overview'),
-    keywords: ['stats', 'summary'],
+    icon: MoonIcon,
+    action: toggleDarkMode,
+    shortcut: '⌘⇧D',
+    keywords: ['dark', 'light', 'theme', 'mode', 'night'],
   },
-  {
-    id: 'action-in-progress',
-    name: 'In Progress Projects',
-    description: 'View projects being worked on',
-    category: 'Actions',
-    icon: LightningIcon,
-    action: () => router.push('/projects/in-progress'),
-    keywords: ['active', 'working'],
-  },
-  {
-    id: 'action-paused',
-    name: 'Paused Projects',
-    description: 'View paused projects',
-    category: 'Actions',
-    icon: PauseIcon,
-    action: () => router.push('/projects/paused'),
-    keywords: ['stopped', 'halted'],
-  },
-  {
-    id: 'action-finished',
-    name: 'Finished Projects',
-    description: 'View completed projects',
-    category: 'Actions',
-    icon: PlayIcon,
-    action: () => router.push('/projects/finished'),
-    keywords: ['completed', 'done'],
-  },
+
+  // Actions - Utility
   {
     id: 'action-refresh',
     name: 'Refresh Page',
-    description: 'Reload the current page',
+    description: 'Reload current page',
     category: 'Actions',
     icon: RefreshIcon,
     action: () => window.location.reload(),
     shortcut: '⌘R',
-    keywords: ['reload'],
+    keywords: ['reload', 'update'],
+  },
+  {
+    id: 'action-copy-url',
+    name: 'Copy Current URL',
+    description: 'Copy page link to clipboard',
+    category: 'Actions',
+    icon: ClipboardIcon,
+    action: copyCurrentUrl,
+    keywords: ['copy', 'link', 'share', 'url'],
+  },
+  {
+    id: 'action-clear-cache',
+    name: 'Clear Local Cache',
+    description: 'Clear cached data (keeps login)',
+    category: 'Actions',
+    icon: TrashIcon,
+    action: () => {
+      const token = localStorage.getItem('auth_token')
+      const user = localStorage.getItem('user')
+      localStorage.clear()
+      if (token) localStorage.setItem('auth_token', token)
+      if (user) localStorage.setItem('user', user)
+      window.location.reload()
+    },
+    keywords: ['clear', 'cache', 'reset', 'storage'],
+  },
+
+  // Actions - External
+  {
+    id: 'action-github',
+    name: 'Open GitHub Repo',
+    description: 'View source code on GitHub',
+    category: 'Actions',
+    icon: ExternalLinkIcon,
+    action: () => window.open('https://github.com/anthropics/claude-code', '_blank'),
+    keywords: ['github', 'source', 'code', 'repo'],
+  },
+  {
+    id: 'action-claude-docs',
+    name: 'Claude Code Docs',
+    description: 'Official Claude Code documentation',
+    category: 'Actions',
+    icon: ExternalLinkIcon,
+    action: () => window.open('https://docs.anthropic.com/claude-code', '_blank'),
+    keywords: ['claude', 'docs', 'anthropic', 'documentation'],
+  },
+
+  // Actions - Account
+  {
+    id: 'action-signout',
+    name: 'Sign Out',
+    description: 'Log out of your account',
+    category: 'Account',
+    icon: LogoutIcon,
+    action: handleSignOut,
+    keywords: ['logout', 'signout', 'exit', 'leave'],
   },
 ]
 
@@ -377,7 +510,7 @@ const filteredItems = computed<CommandItem[]>(() => {
   if (q.startsWith('>')) {
     const actionQuery = q.slice(1).trim()
     return allCommands.value
-      .filter(item => item.category === 'Actions' || item.category === 'Navigation')
+      .filter(item => item.category === 'Actions' || item.category === 'Navigation' || item.category === 'Account')
       .filter(item => {
         if (!actionQuery) return true
         return (
@@ -411,8 +544,8 @@ const groupedItems = computed(() => {
     categoryMap.get(item.category)!.push(item)
   }
 
-  // Order: Projects, Actions, Navigation
-  const order = ['Projects', 'Actions', 'Navigation']
+  // Order: Projects, Navigation, Actions, Account
+  const order = ['Projects', 'Navigation', 'Actions', 'Account']
   for (const cat of order) {
     if (categoryMap.has(cat)) {
       groups.push({ category: cat, items: categoryMap.get(cat)! })

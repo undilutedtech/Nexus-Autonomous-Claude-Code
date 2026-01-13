@@ -975,9 +975,9 @@ let refreshInterval: ReturnType<typeof setInterval> | null = null
 function startAutoRefresh() {
   if (refreshInterval) return
   refreshInterval = setInterval(async () => {
-    // Refresh features and project status every 5 seconds while agent is running
+    // Refresh features, project status, and agent phase every 5 seconds while agent is running
     if (isAgentRunning.value) {
-      await Promise.all([fetchFeatures(), fetchProject()])
+      await Promise.all([fetchFeatures(), fetchProject(), fetchAgentStatus()])
     }
   }, 5000)
 }

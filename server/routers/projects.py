@@ -509,10 +509,46 @@ async def delete_project(name: str, delete_files: bool = False):
 
     # Optionally delete files
     if delete_files and project_dir.exists():
-        try:
-            shutil.rmtree(project_dir)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to delete project files: {e}")
+        import gc
+        import time
+        import sqlite3
+
+        # Close any SQLite connections to databases in this project
+        db_files = list(project_dir.glob("*.db"))
+        for db_file in db_files:
+            try:
+                # Try to connect and immediately close to release any locks
+                conn = sqlite3.connect(str(db_file), timeout=1)
+                conn.close()
+            except Exception:
+                pass
+
+        # Force garbage collection to release file handles
+        gc.collect()
+
+        # Retry deletion with exponential backoff (Windows file locking)
+        max_retries = 5
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                shutil.rmtree(project_dir)
+                break
+            except PermissionError as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    # Wait before retrying (exponential backoff)
+                    time.sleep(0.5 * (attempt + 1))
+                    gc.collect()
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to delete project files: {e}")
+        else:
+            # All retries exhausted
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to delete project files after {max_retries} attempts. "
+                       f"The database may be locked by another process. "
+                       f"Try stopping any running agents first. Error: {last_error}"
+            )
 
     # Unregister from registry
     unregister_project(name)

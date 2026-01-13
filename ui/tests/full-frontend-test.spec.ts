@@ -310,8 +310,8 @@ test.describe('Command Palette', () => {
     await page.keyboard.type('settings')
     await page.waitForTimeout(300)
 
-    // Should show settings option
-    await expect(page.locator('text=Go to Settings')).toBeVisible()
+    // Should show settings option (command name is "Settings")
+    await expect(page.locator('button:has-text("Settings")').first()).toBeVisible()
 
     await page.keyboard.press('Escape')
   })
