@@ -4,6 +4,7 @@ Progress Tracking Utilities
 
 Functions for tracking and displaying progress of the autonomous coding agent.
 Uses direct SQLite access for database queries.
+Includes comprehensive webhook notifications for milestones and usage warnings.
 """
 
 import json
@@ -20,6 +21,12 @@ STUCK_DETECTION_FILE = ".feature_attempts"
 # Configuration via environment variables
 MAX_FEATURE_ATTEMPTS = int(os.environ.get("NEXUS_MAX_FEATURE_ATTEMPTS", "3"))
 AUTO_CONTINUE_DELAY = int(os.environ.get("NEXUS_AUTO_CONTINUE_DELAY", "3"))
+
+# Milestone percentages to notify on
+MILESTONE_PERCENTAGES = [25, 50, 75, 100]
+
+# Usage warning thresholds (percentage of limit used)
+USAGE_WARNING_THRESHOLDS = [75, 90, 95, 100]
 
 # Agent phase constants
 PHASE_IDLE = "idle"
@@ -209,14 +216,59 @@ def get_all_passing_features(project_dir: Path) -> list[dict]:
         return []
 
 
+def _send_webhook(payload: dict) -> bool:
+    """Send a webhook notification. Returns True if successful."""
+    if not WEBHOOK_URL:
+        return False
+
+    try:
+        req = urllib.request.Request(
+            WEBHOOK_URL,
+            data=json.dumps([payload]).encode("utf-8"),  # n8n expects array
+            headers={"Content-Type": "application/json"},
+        )
+        urllib.request.urlopen(req, timeout=5)
+        return True
+    except Exception as e:
+        print(f"[Webhook notification failed: {e}]")
+        return False
+
+
+def _get_milestone_reached(current_pct: float, previous_pct: float) -> int | None:
+    """Check if a milestone was just crossed. Returns the milestone or None."""
+    for milestone in MILESTONE_PERCENTAGES:
+        if previous_pct < milestone <= current_pct:
+            return milestone
+    return None
+
+
+def _get_milestone_message(milestone: int, passing: int, total: int) -> str:
+    """Get a human-readable milestone message."""
+    messages = {
+        25: f"Quarter way there! {passing}/{total} features complete.",
+        50: f"Halfway done! {passing}/{total} features complete.",
+        75: f"Three quarters complete! {passing}/{total} features - almost there!",
+        100: f"All {total} features complete! Project finished successfully.",
+    }
+    return messages.get(milestone, f"{milestone}% complete: {passing}/{total} features.")
+
+
 def send_progress_webhook(passing: int, total: int, project_dir: Path) -> None:
-    """Send webhook notification when progress increases."""
+    """
+    Send comprehensive webhook notification when progress changes.
+
+    Notifications include:
+    - Progress updates (when features complete)
+    - Milestone alerts (25%, 50%, 75%, 100%)
+    - Completion notification
+    """
     if not WEBHOOK_URL:
         return  # Webhook not configured
 
     cache_file = project_dir / PROGRESS_CACHE_FILE
     previous = 0
     previous_passing_ids = set()
+    notified_milestones = []
 
     # Read previous progress and passing feature IDs
     if cache_file.exists():
@@ -224,17 +276,21 @@ def send_progress_webhook(passing: int, total: int, project_dir: Path) -> None:
             cache_data = json.loads(cache_file.read_text())
             previous = cache_data.get("count", 0)
             previous_passing_ids = set(cache_data.get("passing_ids", []))
+            notified_milestones = cache_data.get("notified_milestones", [])
         except Exception:
             previous = 0
 
+    # Calculate percentages
+    current_pct = round((passing / total) * 100, 1) if total > 0 else 0
+    previous_pct = round((previous / total) * 100, 1) if total > 0 else 0
+
     # Only notify if progress increased
     if passing > previous:
-        # Find which features are now passing via API
+        # Find which features are now passing
         completed_tests = []
         current_passing_ids = []
 
-        # Detect transition from old cache format (had count but no passing_ids)
-        # In this case, we can't reliably identify which specific tests are new
+        # Detect transition from old cache format
         is_old_cache_format = len(previous_passing_ids) == 0 and previous > 0
 
         # Get all passing features via direct database access
@@ -242,41 +298,80 @@ def send_progress_webhook(passing: int, total: int, project_dir: Path) -> None:
         for feature in all_passing:
             feature_id = feature.get("id")
             current_passing_ids.append(feature_id)
-            # Only identify individual new tests if we have previous IDs to compare
             if not is_old_cache_format and feature_id not in previous_passing_ids:
-                # This feature is newly passing
                 name = feature.get("name", f"Feature #{feature_id}")
                 category = feature.get("category", "")
                 if category:
-                    completed_tests.append(f"{category} {name}")
+                    completed_tests.append(f"{category}: {name}")
                 else:
                     completed_tests.append(name)
 
+        # Check for milestone
+        milestone = _get_milestone_reached(current_pct, previous_pct)
+        is_milestone = milestone is not None and milestone not in notified_milestones
+        is_complete = passing == total
+
+        # Determine event type and priority
+        if is_complete:
+            event_type = "project_complete"
+            priority = "high"
+            title = "Project Complete!"
+            message = _get_milestone_message(100, passing, total)
+        elif is_milestone:
+            event_type = "milestone_reached"
+            priority = "medium"
+            title = f"{milestone}% Milestone Reached"
+            message = _get_milestone_message(milestone, passing, total)
+            notified_milestones.append(milestone)
+        else:
+            event_type = "progress_update"
+            priority = "low"
+            title = "Progress Update"
+            message = f"{passing}/{total} features complete ({current_pct}%)"
+
+        # Build comprehensive payload
         payload = {
-            "event": "test_progress",
-            "passing": passing,
-            "total": total,
-            "percentage": round((passing / total) * 100, 1) if total > 0 else 0,
-            "previous_passing": previous,
-            "tests_completed_this_session": passing - previous,
-            "completed_tests": completed_tests,
+            "event": event_type,
+            "priority": priority,
+            "title": title,
+            "message": message,
             "project": project_dir.name,
+            "progress": {
+                "passing": passing,
+                "total": total,
+                "percentage": current_pct,
+                "remaining": total - passing,
+            },
+            "session": {
+                "previous_passing": previous,
+                "features_completed": passing - previous,
+                "completed_features": completed_tests,
+            },
+            "milestone": {
+                "reached": is_milestone,
+                "value": milestone,
+                "all_notified": notified_milestones,
+            } if is_milestone else None,
+            "estimates": {
+                "features_remaining": total - passing,
+                "estimated_time_min": (total - passing) * 3,
+                "estimated_time_max": (total - passing) * 5,
+            } if not is_complete else None,
             "timestamp": datetime.utcnow().isoformat() + "Z",
         }
 
-        try:
-            req = urllib.request.Request(
-                WEBHOOK_URL,
-                data=json.dumps([payload]).encode("utf-8"),  # n8n expects array
-                headers={"Content-Type": "application/json"},
-            )
-            urllib.request.urlopen(req, timeout=5)
-        except Exception as e:
-            print(f"[Webhook notification failed: {e}]")
+        # Remove None values for cleaner payload
+        payload = {k: v for k, v in payload.items() if v is not None}
 
-        # Update cache with count and passing IDs
+        _send_webhook(payload)
+
+        # Update cache with count, passing IDs, and notified milestones
         cache_file.write_text(
-            json.dumps({"count": passing, "passing_ids": current_passing_ids})
+            json.dumps({
+                "count": passing,
+                "passing_ids": current_passing_ids,
+                "notified_milestones": notified_milestones,
+            })
         )
     else:
         # Update cache even if no change (for initial state)
@@ -284,8 +379,180 @@ def send_progress_webhook(passing: int, total: int, project_dir: Path) -> None:
             all_passing = get_all_passing_features(project_dir)
             current_passing_ids = [f.get("id") for f in all_passing]
             cache_file.write_text(
-                json.dumps({"count": passing, "passing_ids": current_passing_ids})
+                json.dumps({
+                    "count": passing,
+                    "passing_ids": current_passing_ids,
+                    "notified_milestones": notified_milestones,
+                })
             )
+
+
+def send_usage_warning_webhook(
+    project_dir: Path,
+    usage_type: str,
+    current_value: float,
+    limit_value: float,
+    unit: str = "",
+) -> None:
+    """
+    Send webhook notification for usage warnings.
+
+    Args:
+        project_dir: Project directory
+        usage_type: Type of usage (cost, tokens)
+        current_value: Current usage value
+        limit_value: Configured limit value
+        unit: Unit string (e.g., "$", "tokens")
+    """
+    if not WEBHOOK_URL or limit_value <= 0:
+        return
+
+    cache_file = project_dir / PROGRESS_CACHE_FILE
+    notified_usage_thresholds = {}
+
+    # Read previous notifications
+    if cache_file.exists():
+        try:
+            cache_data = json.loads(cache_file.read_text())
+            notified_usage_thresholds = cache_data.get("notified_usage_thresholds", {})
+        except Exception:
+            pass
+
+    # Calculate percentage used
+    pct_used = (current_value / limit_value) * 100 if limit_value > 0 else 0
+
+    # Check if we crossed a warning threshold
+    previous_thresholds = notified_usage_thresholds.get(usage_type, [])
+    threshold_reached = None
+
+    for threshold in USAGE_WARNING_THRESHOLDS:
+        if pct_used >= threshold and threshold not in previous_thresholds:
+            threshold_reached = threshold
+            previous_thresholds.append(threshold)
+            break
+
+    if threshold_reached is None:
+        return  # No new threshold crossed
+
+    # Determine severity
+    if threshold_reached >= 100:
+        severity = "critical"
+        title = f"Usage Limit Exceeded: {usage_type.title()}"
+        message = f"You have exceeded your {usage_type} limit!"
+    elif threshold_reached >= 95:
+        severity = "critical"
+        title = f"Usage Critical: {usage_type.title()}"
+        message = f"You have used {threshold_reached}% of your {usage_type} limit. Agent will stop soon."
+    elif threshold_reached >= 90:
+        severity = "warning"
+        title = f"Usage Warning: {usage_type.title()}"
+        message = f"You have used {threshold_reached}% of your {usage_type} limit."
+    else:
+        severity = "info"
+        title = f"Usage Notice: {usage_type.title()}"
+        message = f"You have used {threshold_reached}% of your {usage_type} limit."
+
+    # Format values
+    if unit == "$":
+        current_str = f"${current_value:.2f}"
+        limit_str = f"${limit_value:.2f}"
+        remaining_str = f"${max(0, limit_value - current_value):.2f}"
+    else:
+        current_str = f"{int(current_value):,}"
+        limit_str = f"{int(limit_value):,}"
+        remaining_str = f"{int(max(0, limit_value - current_value)):,}"
+
+    payload = {
+        "event": "usage_warning",
+        "priority": "high" if severity in ["critical", "warning"] else "medium",
+        "severity": severity,
+        "title": title,
+        "message": message,
+        "project": project_dir.name,
+        "usage": {
+            "type": usage_type,
+            "current": current_value,
+            "limit": limit_value,
+            "remaining": max(0, limit_value - current_value),
+            "percentage_used": round(pct_used, 1),
+            "threshold_reached": threshold_reached,
+            "formatted": {
+                "current": current_str,
+                "limit": limit_str,
+                "remaining": remaining_str,
+            },
+        },
+        "action_required": severity == "critical",
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
+
+    _send_webhook(payload)
+
+    # Update cache with notified thresholds
+    try:
+        cache_data = {}
+        if cache_file.exists():
+            cache_data = json.loads(cache_file.read_text())
+        notified_usage_thresholds[usage_type] = previous_thresholds
+        cache_data["notified_usage_thresholds"] = notified_usage_thresholds
+        cache_file.write_text(json.dumps(cache_data))
+    except Exception:
+        pass
+
+
+def send_agent_status_webhook(
+    project_dir: Path,
+    status: str,
+    reason: str = "",
+    details: dict | None = None,
+) -> None:
+    """
+    Send webhook notification for agent status changes.
+
+    Args:
+        project_dir: Project directory
+        status: Agent status (started, paused, stopped, stuck, error)
+        reason: Reason for the status change
+        details: Additional details
+    """
+    if not WEBHOOK_URL:
+        return
+
+    # Get current progress
+    passing, in_progress, total = count_passing_tests(project_dir)
+    percentage = round((passing / total) * 100, 1) if total > 0 else 0
+
+    # Determine priority based on status
+    priority_map = {
+        "started": "low",
+        "paused": "medium",
+        "resumed": "low",
+        "stopped": "medium",
+        "stuck": "high",
+        "error": "high",
+        "complete": "high",
+    }
+
+    payload = {
+        "event": "agent_status",
+        "priority": priority_map.get(status, "medium"),
+        "status": status,
+        "reason": reason,
+        "project": project_dir.name,
+        "progress": {
+            "passing": passing,
+            "in_progress": in_progress,
+            "total": total,
+            "percentage": percentage,
+        },
+        "details": details,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
+
+    # Remove None values
+    payload = {k: v for k, v in payload.items() if v is not None}
+
+    _send_webhook(payload)
 
 
 def print_session_header(

@@ -32,6 +32,7 @@ from progress import (
     print_session_header,
     record_feature_attempt,
     reset_stuck_detection,
+    send_agent_status_webhook,
 )
 from handover import clear_handover_notes, create_handover_on_exit
 from prompts import (
@@ -205,9 +206,21 @@ async def run_autonomous_agent(
         print()
         # Copy the app spec into the project directory for the agent to read
         copy_spec_to_project(project_dir)
+        # Send agent started notification
+        send_agent_status_webhook(
+            project_dir, "started",
+            reason="Fresh project initialization started",
+            details={"mode": "initializer", "yolo_mode": yolo_mode}
+        )
     else:
         print("Continuing existing project")
         print_progress_summary(project_dir)
+        # Send agent started notification
+        send_agent_status_webhook(
+            project_dir, "started",
+            reason="Resuming existing project",
+            details={"mode": "coding", "yolo_mode": yolo_mode}
+        )
 
     # Main loop
     iteration = 0
@@ -231,9 +244,16 @@ async def run_autonomous_agent(
                 print(f"  COMPLETION DETECTED")
                 print(f"{'=' * 70}")
                 print(f"\n{reason}")
+                # Send appropriate status webhook
+                if "passing" in reason.lower():
+                    send_agent_status_webhook(project_dir, "complete", reason=reason)
+                elif "stuck" in reason.lower():
+                    send_agent_status_webhook(project_dir, "stuck", reason=reason)
+                else:
+                    send_agent_status_webhook(project_dir, "stopped", reason=reason)
                 break
 
-        # Check usage limits (cost/token limits)
+        # Check usage limits (cost/token limits) - this also sends warnings
         limit_exceeded, limit_reason = check_usage_limits(project_dir)
         if limit_exceeded:
             completion_reason = limit_reason
@@ -241,6 +261,11 @@ async def run_autonomous_agent(
             print(f"  USAGE LIMIT EXCEEDED")
             print(f"{'=' * 70}")
             print(f"\n{limit_reason}")
+            send_agent_status_webhook(
+                project_dir, "stopped",
+                reason="Usage limit exceeded",
+                details={"limit_reason": limit_reason}
+            )
             break
 
         # Track which feature we're working on (for stuck detection)
@@ -303,6 +328,13 @@ async def run_autonomous_agent(
                 print(f"  COMPLETION DETECTED")
                 print(f"{'=' * 70}")
                 print(f"\n{reason}")
+                # Send appropriate status webhook
+                if "passing" in reason.lower():
+                    send_agent_status_webhook(project_dir, "complete", reason=reason)
+                elif "stuck" in reason.lower():
+                    send_agent_status_webhook(project_dir, "stuck", reason=reason)
+                else:
+                    send_agent_status_webhook(project_dir, "stopped", reason=reason)
                 break
 
             await asyncio.sleep(AUTO_CONTINUE_DELAY)
@@ -310,6 +342,11 @@ async def run_autonomous_agent(
         elif status == "error":
             print("\nSession encountered an error")
             print("Will retry with a fresh session...")
+            send_agent_status_webhook(
+                project_dir, "error",
+                reason="Session encountered an error, will retry",
+                details={"iteration": iteration}
+            )
             await asyncio.sleep(AUTO_CONTINUE_DELAY)
 
         # Small delay between sessions

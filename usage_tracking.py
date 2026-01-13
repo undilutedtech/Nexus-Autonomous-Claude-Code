@@ -328,22 +328,60 @@ def check_token_limit(project_dir: Path) -> tuple[bool, str]:
     return False, ""
 
 
-def check_usage_limits(project_dir: Path) -> tuple[bool, str]:
+def check_usage_limits(project_dir: Path, send_warnings: bool = True) -> tuple[bool, str]:
     """
     Check if any usage limit has been exceeded.
+    Optionally sends webhook warnings when approaching limits.
+
+    Args:
+        project_dir: Project directory
+        send_warnings: Whether to send webhook warnings (default True)
 
     Returns:
         (exceeded, reason) tuple
     """
-    # Check cost limit
-    exceeded, reason = check_cost_limit(project_dir)
-    if exceeded:
-        return exceeded, reason
+    # Import here to avoid circular import
+    if send_warnings:
+        try:
+            from progress import send_usage_warning_webhook
+        except ImportError:
+            send_warnings = False
 
-    # Check token limit
-    exceeded, reason = check_token_limit(project_dir)
-    if exceeded:
-        return exceeded, reason
+    stats = load_usage_stats(project_dir)
+
+    # Check cost limit and send warning
+    if MAX_COST_USD > 0:
+        if send_warnings:
+            send_usage_warning_webhook(
+                project_dir,
+                usage_type="cost",
+                current_value=stats.total_cost_usd,
+                limit_value=MAX_COST_USD,
+                unit="$",
+            )
+        if stats.total_cost_usd >= MAX_COST_USD:
+            return True, (
+                f"Cost limit exceeded: ${stats.total_cost_usd:.4f} >= ${MAX_COST_USD:.2f}\n"
+                f"Total tokens used: {stats.total_tokens:,}\n"
+                f"Sessions: {stats.total_sessions}"
+            )
+
+    # Check token limit and send warning
+    if MAX_TOKENS > 0:
+        if send_warnings:
+            send_usage_warning_webhook(
+                project_dir,
+                usage_type="tokens",
+                current_value=float(stats.total_tokens),
+                limit_value=float(MAX_TOKENS),
+                unit="tokens",
+            )
+        if stats.total_tokens >= MAX_TOKENS:
+            return True, (
+                f"Token limit exceeded: {stats.total_tokens:,} >= {MAX_TOKENS:,}\n"
+                f"Total cost: ${stats.total_cost_usd:.4f}\n"
+                f"Sessions: {stats.total_sessions}"
+            )
 
     return False, ""
 
