@@ -10,27 +10,33 @@ Write-Host "  Nexus UI - Web Interface" -ForegroundColor Cyan
 Write-Host "====================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Check if Python is available
+# Check if Python is available (try python, then py launcher)
+$pythonCmd = "python"
 $pythonPath = Get-Command python -ErrorAction SilentlyContinue
 if (-not $pythonPath) {
-    Write-Host "[ERROR] Python not found in PATH" -ForegroundColor Red
-    Write-Host "Please install Python from https://python.org"
-    Read-Host "Press Enter to exit"
-    exit 1
+    $pythonPath = Get-Command py -ErrorAction SilentlyContinue
+    if ($pythonPath) {
+        $pythonCmd = "py"
+    } else {
+        Write-Host "[ERROR] Python not found in PATH" -ForegroundColor Red
+        Write-Host "Please install Python from https://python.org"
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
 }
 
-Write-Host "[OK] Python found" -ForegroundColor Green
+Write-Host "[OK] Python found ($pythonCmd)" -ForegroundColor Green
 
 # Check if venv exists, create if not
 if (-not (Test-Path "venv")) {
     Write-Host "Creating virtual environment..."
-    & python -m venv venv
+    & $pythonCmd -m venv venv
 }
 
-# Activate the virtual environment
+# Activate the virtual environment (dot-source to persist env vars)
 $activateScript = Join-Path $PSScriptRoot "venv\Scripts\Activate.ps1"
 if (Test-Path $activateScript) {
-    & $activateScript
+    . $activateScript
 } else {
     Write-Host "[ERROR] Virtual environment activation script not found" -ForegroundColor Red
     exit 1
@@ -49,6 +55,6 @@ if (-not $nodePath) {
 
 # Run the Python launcher
 $startUiScript = Join-Path $PSScriptRoot "start_ui.py"
-& python $startUiScript $args
+& $pythonCmd $startUiScript $args
 
 Read-Host "Press Enter to exit"

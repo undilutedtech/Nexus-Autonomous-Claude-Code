@@ -64,16 +64,33 @@ if (Test-Path $claudeCreds) {
 
 Write-Host ""
 
+# Check if Python is available (try python, then py launcher)
+$pythonCmd = "python"
+$pythonPath = Get-Command python -ErrorAction SilentlyContinue
+if (-not $pythonPath) {
+    $pythonPath = Get-Command py -ErrorAction SilentlyContinue
+    if ($pythonPath) {
+        $pythonCmd = "py"
+    } else {
+        Write-Host "[ERROR] Python not found in PATH" -ForegroundColor Red
+        Write-Host "Please install Python from https://python.org"
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
+}
+
+Write-Host "[OK] Python found ($pythonCmd)" -ForegroundColor Green
+
 # Check if venv exists, create if not
 if (-not (Test-Path "venv")) {
     Write-Host "Creating virtual environment..."
-    & python -m venv venv
+    & $pythonCmd -m venv venv
 }
 
-# Activate the virtual environment
+# Activate the virtual environment (dot-source to persist env vars)
 $activateScript = Join-Path $PSScriptRoot "venv\Scripts\Activate.ps1"
 if (Test-Path $activateScript) {
-    & $activateScript
+    . $activateScript
 } else {
     Write-Host "[ERROR] Virtual environment activation script not found" -ForegroundColor Red
     exit 1
@@ -84,4 +101,4 @@ Write-Host "Installing dependencies..."
 & pip install -r requirements.txt --quiet
 
 # Run the app
-& python start.py
+& $pythonCmd start.py

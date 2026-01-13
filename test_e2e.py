@@ -13,10 +13,16 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 
 # Test configuration
-BASE_URL = "http://localhost:8888"
+BASE_URL = os.environ.get("TEST_BASE_URL", "http://localhost:8888")
 HOME_DIR = os.path.expanduser("~")
 TEST_PROJECT_PATH = f"{HOME_DIR}/test-chat-project"
-BROWSER_WAIT_TIME = 30000  # 30 seconds for manual inspection at end
+
+# CI detection
+IS_CI = os.environ.get("CI", "").lower() in ("true", "1", "yes")
+IS_HEADLESS = os.environ.get("HEADLESS", "").lower() in ("true", "1", "yes") or IS_CI
+
+# Browser wait time - shorter in CI mode
+BROWSER_WAIT_TIME = 5000 if IS_CI else 30000  # 5s in CI, 30s for manual inspection
 
 
 def random_email():
@@ -50,10 +56,19 @@ async def test_nexus_e2e():
 
     try:
         async with async_playwright() as p:
-            # Launch browser in headed mode
+            # Launch browser - headless in CI, headed for local development
+            print(f"\n  Running in {'CI/headless' if IS_HEADLESS else 'headed'} mode")
             browser = await p.chromium.launch(
-                headless=False,
-                slow_mo=150,
+                headless=IS_HEADLESS,
+                slow_mo=50 if IS_CI else 150,  # Faster in CI
+                args=[
+                    '--disable-gpu-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-features=VizDisplayCompositor',
+                    '--disable-background-networking',
+                ],
             )
             context = await browser.new_context(viewport={"width": 1400, "height": 900})
             page = await context.new_page()
@@ -518,7 +533,12 @@ async def test_nexus_e2e():
             print("  BROWSER INSPECTION")
             print("="*60)
             print(f"\nScreenshots saved to /tmp/test_*.png")
-            print(f"Browser open for {BROWSER_WAIT_TIME//1000} seconds...")
+
+            if IS_CI:
+                print("CI mode - closing browser immediately")
+            else:
+                print(f"Browser open for {BROWSER_WAIT_TIME//1000} seconds...")
+                print("You can interact with the browser now!")
 
             await page.wait_for_timeout(BROWSER_WAIT_TIME)
             await browser.close()
