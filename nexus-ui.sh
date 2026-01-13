@@ -77,26 +77,73 @@ if ! command -v claude &> /dev/null; then
 else
     echo "[OK] Claude CLI found"
 
-    # Check for updates if npm is available
-    if command -v npm &> /dev/null; then
-        echo "     Checking for updates..."
+    # Get current version
+    CURRENT_VER=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+    echo "     Version: $CURRENT_VER"
 
-        # Get current version
-        CURRENT_VER=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+    # Check minimum version requirement (2.0.0)
+    MIN_VERSION="2.0.0"
+    NEEDS_UPDATE=0
 
-        # Get latest version from npm
-        LATEST_VER=$(npm view @anthropic-ai/claude-code version 2>/dev/null)
+    if [ -n "$CURRENT_VER" ]; then
+        CURRENT_MAJOR=$(echo "$CURRENT_VER" | cut -d. -f1)
+        MIN_MAJOR=$(echo "$MIN_VERSION" | cut -d. -f1)
 
-        if [ -n "$CURRENT_VER" ] && [ -n "$LATEST_VER" ] && [ "$CURRENT_VER" != "$LATEST_VER" ]; then
-            echo "[!] Update available: $CURRENT_VER -> $LATEST_VER"
-            read -p "Would you like to update Claude CLI? (y/n): " UPDATE_CHOICE
+        if [ "$CURRENT_MAJOR" -lt "$MIN_MAJOR" ]; then
+            NEEDS_UPDATE=1
+        fi
+    fi
+
+    if [ "$NEEDS_UPDATE" -eq 1 ]; then
+        echo ""
+        echo "[ERROR] Claude CLI version $CURRENT_VER is too old!"
+        echo "        Minimum required version is $MIN_VERSION"
+        echo ""
+
+        if command -v npm &> /dev/null; then
+            echo "Your Claude CLI must be updated to continue."
+            read -p "Update now? (y/n): " UPDATE_CHOICE
             if [[ "$UPDATE_CHOICE" =~ ^[Yy]$ ]]; then
+                echo ""
                 echo "Updating Claude CLI..."
-                npm install -g @anthropic-ai/claude-code@latest 2>/dev/null
-                echo "[OK] Claude CLI updated!"
+                npm install -g @anthropic-ai/claude-code@latest
+
+                # Verify update
+                NEW_VER=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+                if [ -n "$NEW_VER" ]; then
+                    NEW_MAJOR=$(echo "$NEW_VER" | cut -d. -f1)
+                    if [ "$NEW_MAJOR" -ge "$MIN_MAJOR" ]; then
+                        echo "[OK] Claude CLI updated to $NEW_VER"
+                    else
+                        echo "[ERROR] Update failed. Please update manually:"
+                        echo "        npm install -g @anthropic-ai/claude-code@latest"
+                        exit 1
+                    fi
+                fi
+            else
+                echo ""
+                echo "Cannot continue without updating Claude CLI."
+                echo "Run: npm install -g @anthropic-ai/claude-code@latest"
+                exit 1
             fi
         else
-            echo "     Up to date ($CURRENT_VER)"
+            echo "Please update Claude CLI manually:"
+            echo "  npm install -g @anthropic-ai/claude-code@latest"
+            exit 1
+        fi
+    else
+        # Check for optional updates if npm is available
+        if command -v npm &> /dev/null; then
+            LATEST_VER=$(npm view @anthropic-ai/claude-code version 2>/dev/null)
+            if [ -n "$CURRENT_VER" ] && [ -n "$LATEST_VER" ] && [ "$CURRENT_VER" != "$LATEST_VER" ]; then
+                echo "[!] Update available: $CURRENT_VER -> $LATEST_VER"
+                read -p "Would you like to update? (y/n): " UPDATE_CHOICE
+                if [[ "$UPDATE_CHOICE" =~ ^[Yy]$ ]]; then
+                    echo "Updating Claude CLI..."
+                    npm install -g @anthropic-ai/claude-code@latest 2>/dev/null
+                    echo "[OK] Claude CLI updated!"
+                fi
+            fi
         fi
     fi
 fi

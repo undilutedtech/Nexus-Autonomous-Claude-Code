@@ -74,28 +74,74 @@ if %ERRORLEVEL% neq 0 (
 ) else (
     echo [OK] Claude CLI found
 
-    REM Check for updates if npm is available
-    where npm >nul 2>&1
-    if !ERRORLEVEL! equ 0 (
-        echo      Checking for updates...
+    REM Get current version and extract version number
+    for /f "tokens=1" %%v in ('claude --version 2^>nul') do set FULL_VER=%%v
+    echo      Version: !FULL_VER!
 
-        REM Get current version
-        for /f "tokens=*" %%v in ('claude --version 2^>nul') do set CURRENT_VER=%%v
+    REM Extract major version number (first digit before the dot)
+    for /f "tokens=1 delims=." %%m in ("!FULL_VER!") do set MAJOR_VER=%%m
 
-        REM Get latest version from npm
-        for /f "tokens=*" %%v in ('npm view @anthropic-ai/claude-code version 2^>nul') do set LATEST_VER=%%v
+    REM Check minimum version requirement (2.0.0)
+    set MIN_MAJOR=2
+    set NEEDS_UPDATE=0
 
-        if defined CURRENT_VER if defined LATEST_VER (
-            if not "!CURRENT_VER!"=="!LATEST_VER!" (
-                echo [!] Update available: !CURRENT_VER! -^> !LATEST_VER!
-                set /p UPDATE_CHOICE="Would you like to update Claude CLI? (y/n): "
-                if /i "!UPDATE_CHOICE!"=="y" (
-                    echo Updating Claude CLI...
-                    call npm install -g @anthropic-ai/claude-code@latest
-                    echo [OK] Claude CLI updated!
+    if !MAJOR_VER! LSS !MIN_MAJOR! set NEEDS_UPDATE=1
+
+    if !NEEDS_UPDATE! equ 1 (
+        echo.
+        echo [ERROR] Claude CLI version !FULL_VER! is too old!
+        echo         Minimum required version is 2.0.0
+        echo.
+
+        where npm >nul 2>&1
+        if !ERRORLEVEL! equ 0 (
+            echo Your Claude CLI must be updated to continue.
+            set /p UPDATE_CHOICE="Update now? (y/n): "
+            if /i "!UPDATE_CHOICE!"=="y" (
+                echo.
+                echo Updating Claude CLI...
+                call npm install -g @anthropic-ai/claude-code@latest
+
+                REM Verify update
+                for /f "tokens=1" %%v in ('claude --version 2^>nul') do set NEW_VER=%%v
+                for /f "tokens=1 delims=." %%m in ("!NEW_VER!") do set NEW_MAJOR=%%m
+
+                if !NEW_MAJOR! GEQ !MIN_MAJOR! (
+                    echo [OK] Claude CLI updated to !NEW_VER!
+                ) else (
+                    echo [ERROR] Update failed. Please update manually:
+                    echo         npm install -g @anthropic-ai/claude-code@latest
+                    pause
+                    exit /b 1
                 )
             ) else (
-                echo      Up to date
+                echo.
+                echo Cannot continue without updating Claude CLI.
+                echo Run: npm install -g @anthropic-ai/claude-code@latest
+                pause
+                exit /b 1
+            )
+        ) else (
+            echo Please update Claude CLI manually:
+            echo   npm install -g @anthropic-ai/claude-code@latest
+            pause
+            exit /b 1
+        )
+    ) else (
+        REM Check for optional updates if npm is available
+        where npm >nul 2>&1
+        if !ERRORLEVEL! equ 0 (
+            for /f "tokens=*" %%v in ('npm view @anthropic-ai/claude-code version 2^>nul') do set LATEST_VER=%%v
+            if defined LATEST_VER (
+                if not "!FULL_VER!"=="!LATEST_VER!" (
+                    echo [!] Update available: !FULL_VER! -^> !LATEST_VER!
+                    set /p UPDATE_CHOICE="Would you like to update? (y/n): "
+                    if /i "!UPDATE_CHOICE!"=="y" (
+                        echo Updating Claude CLI...
+                        call npm install -g @anthropic-ai/claude-code@latest
+                        echo [OK] Claude CLI updated!
+                    )
+                )
             )
         )
     )

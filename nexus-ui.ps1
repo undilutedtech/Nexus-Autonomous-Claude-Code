@@ -95,30 +95,84 @@ if (-not $claudePath) {
 } else {
     Write-Host "[OK] Claude CLI found" -ForegroundColor Green
 
-    # Check for updates if npm is available
-    $npmPath = Get-Command npm -ErrorAction SilentlyContinue
-    if ($npmPath) {
-        Write-Host "     Checking for updates..." -ForegroundColor Gray
-        try {
-            # Get current version
-            $currentVersion = & claude --version 2>&1 | Select-String -Pattern "\d+\.\d+\.\d+" | ForEach-Object { $_.Matches[0].Value }
+    # Get current version
+    $currentVersion = & claude --version 2>&1 | Select-String -Pattern "\d+\.\d+\.\d+" | ForEach-Object { $_.Matches[0].Value }
+    Write-Host "     Version: $currentVersion" -ForegroundColor Gray
 
-            # Check latest version from npm
-            $latestVersion = & npm view @anthropic-ai/claude-code version 2>&1
+    # Check minimum version requirement (2.0.0)
+    $minVersion = "2.0.0"
+    $needsUpdate = $false
 
-            if ($currentVersion -and $latestVersion -and ($currentVersion -ne $latestVersion)) {
-                Write-Host "[!] Update available: $currentVersion -> $latestVersion" -ForegroundColor Yellow
-                $updateChoice = Read-Host "Would you like to update Claude CLI? (y/n)"
-                if ($updateChoice -match "^[Yy]$") {
-                    Write-Host "Updating Claude CLI..." -ForegroundColor Cyan
-                    & npm install -g @anthropic-ai/claude-code@latest 2>&1 | Out-Null
-                    Write-Host "[OK] Claude CLI updated!" -ForegroundColor Green
+    if ($currentVersion) {
+        $currentParts = $currentVersion.Split('.')
+        $minParts = $minVersion.Split('.')
+        $currentMajor = [int]$currentParts[0]
+        $minMajor = [int]$minParts[0]
+
+        if ($currentMajor -lt $minMajor) {
+            $needsUpdate = $true
+        }
+    }
+
+    if ($needsUpdate) {
+        Write-Host ""
+        Write-Host "[ERROR] Claude CLI version $currentVersion is too old!" -ForegroundColor Red
+        Write-Host "        Minimum required version is $minVersion" -ForegroundColor Red
+        Write-Host ""
+
+        $npmPath = Get-Command npm -ErrorAction SilentlyContinue
+        if ($npmPath) {
+            Write-Host "Your Claude CLI must be updated to continue." -ForegroundColor Yellow
+            $updateChoice = Read-Host "Update now? (y/n)"
+            if ($updateChoice -match "^[Yy]$") {
+                Write-Host ""
+                Write-Host "Updating Claude CLI..." -ForegroundColor Cyan
+                & npm install -g @anthropic-ai/claude-code@latest
+
+                # Verify update
+                $newVersion = & claude --version 2>&1 | Select-String -Pattern "\d+\.\d+\.\d+" | ForEach-Object { $_.Matches[0].Value }
+                if ($newVersion) {
+                    $newMajor = [int]($newVersion.Split('.')[0])
+                    if ($newMajor -ge $minMajor) {
+                        Write-Host "[OK] Claude CLI updated to $newVersion" -ForegroundColor Green
+                    } else {
+                        Write-Host "[ERROR] Update failed. Please update manually:" -ForegroundColor Red
+                        Write-Host "        npm install -g @anthropic-ai/claude-code@latest" -ForegroundColor Yellow
+                        Read-Host "Press Enter to exit"
+                        exit 1
+                    }
                 }
             } else {
-                Write-Host "     Up to date ($currentVersion)" -ForegroundColor Gray
+                Write-Host ""
+                Write-Host "Cannot continue without updating Claude CLI." -ForegroundColor Red
+                Write-Host "Run: npm install -g @anthropic-ai/claude-code@latest" -ForegroundColor Yellow
+                Read-Host "Press Enter to exit"
+                exit 1
             }
-        } catch {
-            # Silently ignore update check failures
+        } else {
+            Write-Host "Please update Claude CLI manually:" -ForegroundColor Yellow
+            Write-Host "  npm install -g @anthropic-ai/claude-code@latest" -ForegroundColor White
+            Read-Host "Press Enter to exit"
+            exit 1
+        }
+    } else {
+        # Check for optional updates if npm is available
+        $npmPath = Get-Command npm -ErrorAction SilentlyContinue
+        if ($npmPath) {
+            try {
+                $latestVersion = & npm view @anthropic-ai/claude-code version 2>&1
+                if ($currentVersion -and $latestVersion -and ($currentVersion -ne $latestVersion)) {
+                    Write-Host "[!] Update available: $currentVersion -> $latestVersion" -ForegroundColor Yellow
+                    $updateChoice = Read-Host "Would you like to update? (y/n)"
+                    if ($updateChoice -match "^[Yy]$") {
+                        Write-Host "Updating Claude CLI..." -ForegroundColor Cyan
+                        & npm install -g @anthropic-ai/claude-code@latest 2>&1 | Out-Null
+                        Write-Host "[OK] Claude CLI updated!" -ForegroundColor Green
+                    }
+                }
+            } catch {
+                # Silently ignore update check failures
+            }
         }
     }
 }
