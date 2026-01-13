@@ -101,6 +101,44 @@ else
     fi
 fi
 
+# Check if user is authenticated with Claude (REQUIRED for Spec Generator)
+CLAUDE_CREDS="$HOME/.claude/.credentials.json"
+if [ -f "$CLAUDE_CREDS" ]; then
+    echo "[OK] Claude authenticated"
+else
+    echo "[!] Not authenticated with Claude"
+    echo ""
+    echo "Authentication is required before using Nexus."
+    echo "This will open a browser window to sign in with your Claude account."
+    echo ""
+    read -p "Press Enter to authenticate (or 'q' to quit): " LOGIN_CHOICE
+
+    if [ "$LOGIN_CHOICE" = "q" ]; then
+        echo "Exiting. Please run 'claude login' manually before using Nexus."
+        exit 1
+    fi
+
+    echo ""
+    echo "Opening browser for authentication..."
+    echo "Complete the login in your browser, then return here."
+    echo ""
+
+    claude login
+
+    # Verify login succeeded
+    if [ -f "$CLAUDE_CREDS" ]; then
+        echo ""
+        echo "[OK] Authentication successful!"
+    else
+        echo ""
+        echo "[ERROR] Authentication failed or was cancelled."
+        echo "Please try again by running this script."
+        exit 1
+    fi
+fi
+
+echo ""
+
 # Check if Node.js is available
 if ! command -v node &> /dev/null; then
     echo "[WARNING] Node.js not found - UI may not work properly"

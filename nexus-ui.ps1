@@ -123,6 +123,46 @@ if (-not $claudePath) {
     }
 }
 
+# Check if user is authenticated with Claude (REQUIRED for Spec Generator)
+$claudeCreds = Join-Path $env:USERPROFILE ".claude\.credentials.json"
+if (Test-Path $claudeCreds) {
+    Write-Host "[OK] Claude authenticated" -ForegroundColor Green
+} else {
+    Write-Host "[!] Not authenticated with Claude" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Authentication is required before using Nexus."
+    Write-Host "This will open a browser window to sign in with your Claude account."
+    Write-Host ""
+
+    $loginChoice = Read-Host "Press Enter to authenticate (or 'q' to quit)"
+
+    if ($loginChoice -eq "q") {
+        Write-Host "Exiting. Please run 'claude login' manually before using Nexus."
+        exit 1
+    }
+
+    Write-Host ""
+    Write-Host "Opening browser for authentication..." -ForegroundColor Cyan
+    Write-Host "Complete the login in your browser, then return here."
+    Write-Host ""
+
+    & claude login
+
+    # Verify login succeeded
+    if (Test-Path $claudeCreds) {
+        Write-Host ""
+        Write-Host "[OK] Authentication successful!" -ForegroundColor Green
+    } else {
+        Write-Host ""
+        Write-Host "[ERROR] Authentication failed or was cancelled." -ForegroundColor Red
+        Write-Host "Please try again by running this script."
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
+}
+
+Write-Host ""
+
 # Check if Node.js is available (for UI)
 $nodePath = Get-Command node -ErrorAction SilentlyContinue
 if (-not $nodePath) {

@@ -101,6 +101,42 @@ if %ERRORLEVEL% neq 0 (
     )
 )
 
+REM Check if user is authenticated with Claude (REQUIRED for Spec Generator)
+set "CLAUDE_CREDS=%USERPROFILE%\.claude\.credentials.json"
+if exist "%CLAUDE_CREDS%" (
+    echo [OK] Claude authenticated
+) else (
+    echo [!] Not authenticated with Claude
+    echo.
+    echo Authentication is required before using Nexus.
+    echo This will open a browser window to sign in with your Claude account.
+    echo.
+    set /p LOGIN_CHOICE="Press Enter to authenticate (or 'q' to quit): "
+    if /i "!LOGIN_CHOICE!"=="q" (
+        echo Exiting. Please run 'claude login' manually before using Nexus.
+        pause
+        exit /b 1
+    )
+    echo.
+    echo Opening browser for authentication...
+    echo Complete the login in your browser, then return here.
+    echo.
+    call claude login
+
+    if exist "%CLAUDE_CREDS%" (
+        echo.
+        echo [OK] Authentication successful!
+    ) else (
+        echo.
+        echo [ERROR] Authentication failed or was cancelled.
+        echo Please try again by running this script.
+        pause
+        exit /b 1
+    )
+)
+
+echo.
+
 REM Check if Node.js is available
 where node >nul 2>&1
 if %ERRORLEVEL% neq 0 (

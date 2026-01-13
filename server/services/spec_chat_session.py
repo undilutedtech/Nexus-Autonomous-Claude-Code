@@ -164,6 +164,46 @@ class SpecChatSession:
 
         print(f"[SPEC SESSION] Claude CLI found at: {system_cli}")
 
+        # Pre-flight check: verify Claude CLI is working and authenticated
+        import subprocess
+        try:
+            print("[SPEC SESSION] Running pre-flight check on Claude CLI...")
+            result = subprocess.run(
+                [system_cli, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode != 0:
+                print(f"[SPEC SESSION] Claude CLI version check failed: {result.stderr}")
+                yield {
+                    "type": "error",
+                    "content": f"Claude CLI check failed. Please run 'claude doctor' to diagnose issues. Error: {result.stderr}"
+                }
+                return
+            print(f"[SPEC SESSION] Claude CLI version: {result.stdout.strip()}")
+        except subprocess.TimeoutExpired:
+            print("[SPEC SESSION] Claude CLI timed out during version check")
+            yield {
+                "type": "error",
+                "content": "Claude CLI timed out. Please check your installation."
+            }
+            return
+        except Exception as e:
+            print(f"[SPEC SESSION] Pre-flight check failed: {e}")
+
+        # Check for credentials (works on Windows and Unix)
+        creds_path = Path.home() / ".claude" / ".credentials.json"
+        print(f"[SPEC SESSION] Checking for credentials at: {creds_path}")
+        if not creds_path.exists():
+            print("[SPEC SESSION] ERROR: Claude credentials not found!")
+            yield {
+                "type": "error",
+                "content": f"Not authenticated with Claude. Please run 'claude login' in your terminal first. Expected credentials at: {creds_path}"
+            }
+            return
+        print("[SPEC SESSION] Claude credentials found")
+
         try:
             print("[SPEC SESSION] Creating Claude SDK client...")
             self.client = ClaudeSDKClient(
@@ -197,13 +237,30 @@ class SpecChatSession:
             }
             return
         except Exception as e:
-            print(f"[SPEC SESSION] ERROR: Failed to create Claude client: {e}")
+            error_str = str(e)
+            print(f"[SPEC SESSION] ERROR: Failed to create Claude client: {error_str}")
             import traceback
             traceback.print_exc()
             logger.exception("Failed to create Claude client")
+
+            # Provide helpful error messages based on common issues
+            if "exit code 1" in error_str.lower() or "exit code: 1" in error_str.lower():
+                error_msg = (
+                    "Claude CLI failed to start. This usually means:\n"
+                    "1. Not authenticated - run 'claude login' in terminal\n"
+                    "2. Network issues - check your internet connection\n"
+                    "3. Subscription issues - verify your Claude subscription\n\n"
+                    "Run 'claude doctor' in terminal to diagnose.\n\n"
+                    f"Technical details: {error_str}"
+                )
+            elif "permission" in error_str.lower():
+                error_msg = f"Permission error with Claude CLI. Try running as administrator.\n\nDetails: {error_str}"
+            else:
+                error_msg = f"Failed to initialize Claude: {error_str}"
+
             yield {
                 "type": "error",
-                "content": f"Failed to initialize Claude: {str(e)}"
+                "content": error_msg
             }
             return
 
