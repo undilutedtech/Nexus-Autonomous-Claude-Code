@@ -35,6 +35,9 @@ class Feature(Base):
     last_attempt_at = Column(DateTime, nullable=True)  # Last attempt timestamp
     added_at = Column(DateTime, nullable=True)  # When feature was added (for tracking new features)
     source = Column(String(20), default="initializer")  # initializer/manual/user_added
+    # Feature decomposition support
+    parent_id = Column(Integer, nullable=True, index=True)  # Parent feature ID if this is a sub-feature
+    is_decomposed = Column(Boolean, default=False)  # True if feature was broken into sub-features
 
     def to_dict(self) -> dict:
         """Convert feature to dictionary for JSON serialization."""
@@ -52,6 +55,8 @@ class Feature(Base):
             "last_attempt_at": self.last_attempt_at.isoformat() if self.last_attempt_at else None,
             "added_at": self.added_at.isoformat() if self.added_at else None,
             "source": self.source,
+            "parent_id": self.parent_id,
+            "is_decomposed": self.is_decomposed,
         }
 
 
@@ -97,6 +102,13 @@ def _migrate_features_db(engine) -> None:
 
         if "source" not in columns:
             conn.execute(text("ALTER TABLE features ADD COLUMN source VARCHAR(20) DEFAULT 'initializer'"))
+
+        # Feature decomposition columns
+        if "parent_id" not in columns:
+            conn.execute(text("ALTER TABLE features ADD COLUMN parent_id INTEGER"))
+
+        if "is_decomposed" not in columns:
+            conn.execute(text("ALTER TABLE features ADD COLUMN is_decomposed BOOLEAN DEFAULT 0"))
 
         conn.commit()
 

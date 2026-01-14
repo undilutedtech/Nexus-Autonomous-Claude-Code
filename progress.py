@@ -604,27 +604,39 @@ def print_progress_summary(project_dir: Path) -> None:
         print("\nProgress: No features in database yet")
 
 
-def check_completion_status(project_dir: Path) -> tuple[bool, str]:
+def check_completion_status(project_dir: Path, allow_decomposition: bool = True) -> tuple[bool, str, str | None]:
     """
-    Check if the agent should stop running.
+    Check if the agent should stop running or needs to decompose a feature.
+
+    Args:
+        project_dir: Project directory
+        allow_decomposition: If True, stuck features trigger decomposition instead of stopping
 
     Returns:
-        (should_stop, reason) tuple where:
+        (should_stop, reason, action) tuple where:
         - should_stop: True if agent should terminate
         - reason: Human-readable explanation
+        - action: "complete" | "stuck" | "decompose" | None
     """
     passing, in_progress, total = count_passing_tests(project_dir)
 
     # All features complete
     if total > 0 and passing == total:
-        return True, f"All {total} features are passing!"
+        return True, f"All {total} features are passing!", "complete"
 
     # Check for stuck detection
     is_stuck, stuck_reason = check_stuck_detection(project_dir)
     if is_stuck:
-        return True, stuck_reason
+        if allow_decomposition:
+            # Instead of stopping, trigger decomposition
+            stuck_feature_id = get_stuck_feature_id(project_dir)
+            if stuck_feature_id:
+                mark_feature_for_decomposition(project_dir, stuck_feature_id)
+                return False, f"Feature #{stuck_feature_id} is stuck. Triggering decomposition.", "decompose"
+        # Fall back to stopping if decomposition not allowed
+        return True, stuck_reason, "stuck"
 
-    return False, ""
+    return False, "", None
 
 
 def get_current_feature_id(project_dir: Path) -> int | None:
@@ -730,6 +742,109 @@ def check_stuck_detection(project_dir: Path) -> tuple[bool, str]:
         return False, ""
     except Exception:
         return False, ""
+
+
+def get_stuck_feature_id(project_dir: Path) -> int | None:
+    """
+    Get the ID of a stuck feature (one that has reached max attempts).
+
+    Returns:
+        Feature ID if a feature is stuck, None otherwise.
+    """
+    attempts_file = project_dir / STUCK_DETECTION_FILE
+
+    if not attempts_file.exists():
+        return None
+
+    try:
+        attempts = json.loads(attempts_file.read_text())
+
+        for feature_id, count in attempts.items():
+            if count >= MAX_FEATURE_ATTEMPTS:
+                return int(feature_id)
+
+        return None
+    except Exception:
+        return None
+
+
+def get_stuck_feature_details(project_dir: Path) -> dict | None:
+    """
+    Get details about a stuck feature for decomposition.
+
+    Returns:
+        Dictionary with feature details or None if no stuck feature.
+    """
+    feature_id = get_stuck_feature_id(project_dir)
+    if feature_id is None:
+        return None
+
+    db_file = project_dir / "features.db"
+    if not db_file.exists():
+        return None
+
+    try:
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, category, name, description, steps FROM features WHERE id = ?",
+            (feature_id,)
+        )
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            # Parse steps (stored as JSON)
+            steps = row[4]
+            if isinstance(steps, str):
+                steps = json.loads(steps)
+
+            return {
+                "id": row[0],
+                "category": row[1],
+                "name": row[2],
+                "description": row[3],
+                "steps": steps,
+                "attempts": get_feature_attempts(project_dir).get(str(feature_id), 0),
+            }
+        return None
+    except Exception:
+        return None
+
+
+def mark_feature_for_decomposition(project_dir: Path, feature_id: int) -> None:
+    """
+    Mark a feature as needing decomposition (used to trigger decomposition prompt).
+
+    Args:
+        project_dir: Project directory
+        feature_id: ID of the feature to decompose
+    """
+    decompose_file = project_dir / ".pending_decomposition"
+    decompose_file.write_text(str(feature_id))
+
+
+def get_pending_decomposition(project_dir: Path) -> int | None:
+    """
+    Get the feature ID pending decomposition, if any.
+
+    Returns:
+        Feature ID if decomposition is pending, None otherwise.
+    """
+    decompose_file = project_dir / ".pending_decomposition"
+    if decompose_file.exists():
+        try:
+            return int(decompose_file.read_text().strip())
+        except Exception:
+            return None
+    return None
+
+
+def clear_pending_decomposition(project_dir: Path) -> None:
+    """Clear the pending decomposition marker."""
+    decompose_file = project_dir / ".pending_decomposition"
+    if decompose_file.exists():
+        decompose_file.unlink()
 
 
 def get_feature_attempts(project_dir: Path) -> dict[str, int]:

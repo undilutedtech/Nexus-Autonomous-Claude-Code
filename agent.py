@@ -25,8 +25,11 @@ from progress import (
     AUTO_CONTINUE_DELAY,
     check_completion_status,
     clear_feature_attempt,
+    clear_pending_decomposition,
     count_passing_tests,
     get_current_feature_id,
+    get_pending_decomposition,
+    get_stuck_feature_details,
     has_features,
     print_progress_summary,
     print_session_header,
@@ -39,6 +42,7 @@ from prompts import (
     copy_spec_to_project,
     get_coding_prompt,
     get_coding_prompt_yolo,
+    get_decomposition_prompt,
     get_handover_notes,
     get_initializer_prompt,
 )
@@ -236,9 +240,43 @@ async def run_autonomous_agent(
             break
 
         # Check for completion BEFORE starting a new session (skip on first run)
+        decomposition_mode = False
         if not is_first_run:
-            should_stop, reason = check_completion_status(project_dir)
-            if should_stop:
+            should_stop, reason, action = check_completion_status(project_dir)
+            if action == "decompose":
+                # Feature is stuck - enter decomposition mode instead of stopping
+                decomposition_mode = True
+                stuck_feature = get_stuck_feature_details(project_dir)
+                print(f"\n{'=' * 70}")
+                print(f"  AUTOMATIC DECOMPOSITION MODE")
+                print(f"{'=' * 70}")
+                print()
+                print(f"  REASON: Feature has been attempted multiple times without success.")
+                if stuck_feature:
+                    print(f"  STUCK FEATURE: #{stuck_feature['id']} - {stuck_feature['name']}")
+                    print(f"  ATTEMPTS: {stuck_feature.get('attempts', 'unknown')}")
+                print()
+                print(f"  ACTION: The agent will automatically break this complex feature")
+                print(f"          into smaller, more manageable sub-tasks.")
+                print()
+                print(f"  HOW IT WORKS:")
+                print(f"    1. Agent analyzes why the feature is failing")
+                print(f"    2. Creates 2-5 smaller sub-features from the original")
+                print(f"    3. Sub-features are added to the queue right after the parent")
+                print(f"    4. When all sub-features pass, the parent auto-completes")
+                print()
+                print(f"  This prevents the agent from getting permanently stuck!")
+                print(f"{'=' * 70}")
+                send_agent_status_webhook(
+                    project_dir, "decomposing",
+                    reason=f"Feature #{stuck_feature['id'] if stuck_feature else '?'} stuck after multiple attempts. Auto-decomposing into smaller tasks.",
+                    details={
+                        "stuck_feature": stuck_feature,
+                        "action": "decomposition",
+                        "explanation": "Agent will break this feature into smaller sub-tasks that are easier to implement."
+                    }
+                )
+            elif should_stop:
                 completion_reason = reason
                 print(f"\n{'=' * 70}")
                 print(f"  COMPLETION DETECTED")
@@ -285,6 +323,11 @@ async def run_autonomous_agent(
             is_first_run = False  # Only use initializer once
             # Reset stuck detection for fresh project
             reset_stuck_detection(project_dir)
+        elif decomposition_mode:
+            # Use decomposition prompt when a feature is stuck
+            stuck_feature = get_stuck_feature_details(project_dir)
+            prompt = get_decomposition_prompt(project_dir, stuck_feature)
+            print(f"[Decomposing feature: {stuck_feature['name'] if stuck_feature else 'unknown'}]")
         else:
             # Use YOLO prompt if in YOLO mode
             if yolo_mode:
@@ -305,6 +348,15 @@ async def run_autonomous_agent(
         passing_after, _, _ = count_passing_tests(project_dir)
         feature_id_after = get_current_feature_id(project_dir)
 
+        # If decomposition mode was active, clear it (decomposition happened)
+        if decomposition_mode:
+            pending_decomp = get_pending_decomposition(project_dir)
+            if pending_decomp:
+                # Clear the stuck detection for this feature (it's now decomposed)
+                clear_feature_attempt(project_dir, pending_decomp)
+                clear_pending_decomposition(project_dir)
+                print(f"\n[Feature #{pending_decomp} decomposed into sub-features]")
+
         # If a feature was in progress and is now passing, clear its attempt count
         if feature_id_before and passing_after > passing_before:
             clear_feature_attempt(project_dir, feature_id_before)
@@ -321,8 +373,11 @@ async def run_autonomous_agent(
             print_progress_summary(project_dir)
 
             # Check completion after printing progress
-            should_stop, reason = check_completion_status(project_dir)
-            if should_stop:
+            should_stop, reason, action = check_completion_status(project_dir)
+            if action == "decompose":
+                # Will trigger decomposition in next iteration
+                print(f"\n[Feature stuck - will decompose in next session]")
+            elif should_stop:
                 completion_reason = reason
                 print(f"\n{'=' * 70}")
                 print(f"  COMPLETION DETECTED")

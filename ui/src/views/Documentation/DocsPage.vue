@@ -354,6 +354,111 @@
         </div>
       </section>
 
+      <!-- Automatic Feature Decomposition -->
+      <section id="decomposition" class="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/[0.03]">
+        <h2 class="flex items-center gap-2 text-xl font-semibold text-gray-800 dark:text-white/90 mb-4">
+          <svg class="w-6 h-6 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+          </svg>
+          Automatic Feature Decomposition
+        </h2>
+
+        <div class="space-y-4">
+          <div class="rounded-lg bg-cyan-50 p-4 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-800">
+            <p class="text-cyan-700 dark:text-cyan-400">
+              <strong>New Feature:</strong> When the agent gets stuck on a complex feature, Nexus automatically breaks it down into smaller, manageable sub-features instead of stopping.
+            </p>
+          </div>
+
+          <!-- How It Works -->
+          <div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-800/50">
+            <h3 class="font-medium text-gray-800 dark:text-white/90 mb-3">How It Works</h3>
+            <div class="space-y-3">
+              <div class="flex gap-3">
+                <div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-white text-xs font-bold">1</div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  <strong>Detection:</strong> When a feature fails after 3 attempts (configurable via <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded text-xs">NEXUS_MAX_FEATURE_ATTEMPTS</code>), the system detects it's "stuck"
+                </p>
+              </div>
+              <div class="flex gap-3">
+                <div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-white text-xs font-bold">2</div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  <strong>Decomposition Mode:</strong> Instead of stopping, a special decomposition session starts automatically
+                </p>
+              </div>
+              <div class="flex gap-3">
+                <div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-white text-xs font-bold">3</div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  <strong>Breaking Down:</strong> The agent analyzes the complex feature and creates 2-5 smaller sub-features
+                </p>
+              </div>
+              <div class="flex gap-3">
+                <div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-white text-xs font-bold">4</div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  <strong>Queue Update:</strong> Sub-features are inserted right after the parent in the priority queue
+                </p>
+              </div>
+              <div class="flex gap-3">
+                <div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-white text-xs font-bold">5</div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  <strong>Auto-Complete:</strong> When ALL sub-features pass, the parent feature automatically passes too
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Decomposition Strategies -->
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div class="rounded-lg bg-brand-50 p-4 dark:bg-brand-900/20">
+              <h4 class="font-semibold text-brand-700 dark:text-brand-400 mb-2">By Layer</h4>
+              <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1 list-disc ml-4">
+                <li>UI Component</li>
+                <li>API Integration</li>
+                <li>State Management</li>
+              </ul>
+            </div>
+            <div class="rounded-lg bg-success-50 p-4 dark:bg-success-900/20">
+              <h4 class="font-semibold text-success-700 dark:text-success-400 mb-2">By Functionality</h4>
+              <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1 list-disc ml-4">
+                <li>Basic Flow</li>
+                <li>Validation</li>
+                <li>Error Handling</li>
+              </ul>
+            </div>
+            <div class="rounded-lg bg-purple-50 p-4 dark:bg-purple-900/20">
+              <h4 class="font-semibold text-purple-700 dark:text-purple-400 mb-2">By Scope</h4>
+              <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1 list-disc ml-4">
+                <li>Core Feature</li>
+                <li>Enhancements</li>
+                <li>Polish & Edge Cases</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Benefits -->
+          <div class="rounded-lg border border-success-200 bg-success-50 p-4 dark:border-success-800 dark:bg-success-900/20">
+            <h4 class="font-semibold text-success-700 dark:text-success-400 mb-2">Benefits</h4>
+            <ul class="text-sm text-success-600 dark:text-success-400/80 space-y-1 list-disc ml-4">
+              <li><strong>No more stuck agents</strong> - Projects continue making progress instead of stopping</li>
+              <li><strong>Better success rate</strong> - Smaller tasks are easier to implement correctly</li>
+              <li><strong>Automatic recovery</strong> - No manual intervention needed</li>
+              <li><strong>Preserved context</strong> - Sub-features inherit category and context from parent</li>
+            </ul>
+          </div>
+
+          <!-- Example -->
+          <div class="rounded-lg bg-gray-900 p-4 font-mono text-xs overflow-x-auto">
+            <p class="text-gray-400 mb-2"># Example: Complex "User Authentication" feature decomposed into:</p>
+            <pre class="text-green-400">
+├── User Authentication (DECOMPOSED - will auto-pass)
+│   ├── User Authentication - Login Form UI
+│   ├── User Authentication - API Integration
+│   └── User Authentication - Session Management
+            </pre>
+          </div>
+        </div>
+      </section>
+
       <!-- Custom Subagents -->
       <section id="subagents" class="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/[0.03]">
         <h2 class="flex items-center gap-2 text-xl font-semibold text-gray-800 dark:text-white/90 mb-4">
@@ -550,7 +655,7 @@
           <div class="rounded-lg border-l-4 border-brand-500 bg-brand-50 p-4 dark:bg-brand-900/10">
             <h3 class="font-medium text-brand-700 dark:text-brand-400">"Feature keeps failing after multiple attempts"</h3>
             <p class="text-sm text-brand-600 dark:text-brand-400/80 mt-1">
-              Try: 1) Check the feature description for clarity, 2) Use "Skip" to move to next feature, 3) Edit the feature with more specific instructions, 4) Check Agent Activity for error details.
+              <strong>Good news!</strong> Nexus now automatically handles this with <a href="#decomposition" class="underline">Feature Decomposition</a>. The agent will break complex features into smaller sub-tasks. If you prefer manual control: 1) Use "Skip" to move to next feature, 2) Edit the feature with more specific instructions, 3) Check Agent Activity for error details.
             </p>
           </div>
 
@@ -690,6 +795,10 @@ const WarningIcon = markRaw({
   template: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>`
 })
 
+const SplitIcon = markRaw({
+  template: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" /></svg>`
+})
+
 const quickNavSections = [
   {
     id: 'how-it-works',
@@ -711,6 +820,13 @@ const quickNavSections = [
     icon: CheckBadgeIcon,
     bgClass: 'bg-purple-100 dark:bg-purple-500/20',
     iconClass: 'text-purple-600',
+  },
+  {
+    id: 'decomposition',
+    title: 'Decomposition',
+    icon: SplitIcon,
+    bgClass: 'bg-cyan-100 dark:bg-cyan-500/20',
+    iconClass: 'text-cyan-600',
   },
   {
     id: 'configuration',

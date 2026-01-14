@@ -157,6 +157,110 @@ def get_coding_prompt_yolo(project_dir: Path | None = None) -> str:
     return prompt
 
 
+def get_decomposition_prompt(project_dir: Path | None, stuck_feature: dict | None = None) -> str:
+    """
+    Generate a prompt for decomposing a stuck feature into smaller sub-features.
+
+    This is called when a feature has been attempted multiple times without success.
+    The agent will analyze the feature and break it into smaller, more manageable pieces.
+
+    Args:
+        project_dir: The project directory
+        stuck_feature: Dictionary with stuck feature details (id, name, description, steps, attempts)
+
+    Returns:
+        The decomposition prompt string
+    """
+    if not stuck_feature:
+        stuck_feature = {
+            "id": "unknown",
+            "name": "Unknown Feature",
+            "description": "No description available",
+            "steps": [],
+            "attempts": 0,
+        }
+
+    steps_text = "\n".join(f"  - {step}" for step in stuck_feature.get("steps", []))
+
+    prompt = f'''# Feature Decomposition Mode
+
+## What Happened
+Feature #{stuck_feature["id"]} has been attempted {stuck_feature.get("attempts", "multiple")} times without successfully passing.
+This indicates the feature is too complex to implement in one go.
+
+## The Stuck Feature
+**Name:** {stuck_feature["name"]}
+**Category:** {stuck_feature.get("category", "Unknown")}
+**Description:** {stuck_feature["description"]}
+**Steps:**
+{steps_text}
+
+## Your Task
+You must decompose this complex feature into **2-5 smaller sub-features** that are each easier to implement and test independently.
+
+### Guidelines for Decomposition:
+1. **Analyze the failure** - First understand WHY the feature kept failing:
+   - Is there a dependency on another feature not yet implemented?
+   - Is the scope too broad (trying to do too many things)?
+   - Are there edge cases or error handling making it complex?
+   - Is the test criteria unclear or too strict?
+
+2. **Break it down logically** - Each sub-feature should:
+   - Be independently testable
+   - Have a clear, single responsibility
+   - Build on previous sub-features if needed
+   - Be small enough to implement in one session
+
+3. **Common decomposition strategies**:
+   - **By layer**: UI component → API integration → State management
+   - **By functionality**: Basic flow → Validation → Error handling → Edge cases
+   - **By scope**: Core feature → Optional enhancements → Polish
+   - **By dependency**: Independent pieces first → Dependent pieces later
+
+## Required Action
+Use the `feature_decompose` tool to break this feature into sub-features.
+
+Example:
+```
+feature_decompose(
+    feature_id={stuck_feature["id"]},
+    sub_features=[
+        {{
+            "name": "Feature Name - Part 1 (Basic)",
+            "description": "What this sub-feature accomplishes",
+            "steps": ["Step 1", "Step 2", "Verify step"]
+        }},
+        {{
+            "name": "Feature Name - Part 2 (Enhanced)",
+            "description": "What this sub-feature adds",
+            "steps": ["Step 1", "Step 2", "Verify step"]
+        }}
+    ],
+    reason="Explanation of why decomposition was needed"
+)
+```
+
+## After Decomposition
+- The original feature will be marked as "decomposed"
+- Sub-features will be added to the queue right after the parent
+- When ALL sub-features pass, the parent will automatically pass
+- You can then continue implementing the first sub-feature
+
+## Important Notes
+- Do NOT skip this feature - decompose it instead
+- Each sub-feature should be achievable in a single agent session
+- Sub-feature names should clearly indicate they are part of the parent
+- The steps should be specific and testable
+'''
+
+    # Append any injected context
+    context = get_injected_context(project_dir)
+    if context:
+        prompt += f"\n\n---\n\n## Additional Context from Assistant\n\n{context}\n"
+
+    return prompt
+
+
 def get_app_spec(project_dir: Path) -> str:
     """
     Load the app spec from the project.

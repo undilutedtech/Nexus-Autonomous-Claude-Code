@@ -140,6 +140,38 @@ Use the feature_skip tool with feature_id={id}
 
 Document the SPECIFIC external blocker in `claude-progress.txt`. "Functionality not built" is NEVER a valid reason.
 
+#### Decomposing Complex Features (AUTOMATIC)
+
+If you encounter a feature that is too complex to implement in one session, the system will automatically detect this and trigger **decomposition mode**.
+
+**How it works:**
+1. When a feature fails after multiple attempts, the system detects it's "stuck"
+2. Instead of stopping, a special decomposition session starts
+3. The agent breaks the complex feature into 2-5 smaller sub-features
+4. Sub-features are added to the queue right after the parent
+5. When ALL sub-features pass, the parent automatically passes
+
+**You can also manually decompose a feature if you recognize it's too complex:**
+
+```
+# Break a complex feature into smaller pieces
+feature_decompose with feature_id={id} sub_features=[
+  {"name": "Feature - Part 1", "description": "...", "steps": ["..."]},
+  {"name": "Feature - Part 2", "description": "...", "steps": ["..."]}
+] reason="Feature requires multiple independent systems to be built"
+```
+
+**When to consider manual decomposition:**
+- Feature involves multiple independent systems (UI + API + database)
+- Feature has many edge cases that each need separate handling
+- Feature depends on functionality that needs to be built first
+- You recognize early that the scope is too large for one session
+
+**Decomposition strategies:**
+- **By layer**: UI component → API integration → State management
+- **By functionality**: Basic flow → Validation → Error handling → Edge cases
+- **By scope**: Core feature → Optional enhancements → Polish
+
 ### STEP 5: IMPLEMENT THE FEATURE
 
 Implement the chosen feature thoroughly:
@@ -388,6 +420,12 @@ feature_clear_in_progress with feature_id={id}
 
 # 8. Ask the user a clarifying question (wait for response)
 ask_user_question with question="..." context="..." options=["A", "B", "C"]
+
+# 9. Decompose a complex feature into smaller sub-features
+feature_decompose with feature_id={id} sub_features=[...] reason="..."
+
+# 10. Check if parent feature is complete (after sub-features pass)
+feature_check_parent_completion with parent_id={id}
 ```
 
 ### Asking User Questions
@@ -416,16 +454,16 @@ The tool will wait up to 5 minutes for the user to respond. If they skip or time
 **MANDATORY: Run code validation before marking any feature as passing.**
 
 ```
-# 9. Validate code quality and security (RUN BEFORE MARKING PASSING)
+# 11. Validate code quality and security (RUN BEFORE MARKING PASSING)
 validate_code_quality
 
-# 10. Get OWASP Top 10 security checklist
+# 12. Get OWASP Top 10 security checklist
 get_security_checklist
 
-# 11. Generate placeholder documentation (for API keys, secrets, etc.)
+# 13. Generate placeholder documentation (for API keys, secrets, etc.)
 generate_placeholder_docs
 
-# 12. Generate technical documentation (when project is complete)
+# 14. Generate technical documentation (when project is complete)
 generate_technical_docs
 ```
 

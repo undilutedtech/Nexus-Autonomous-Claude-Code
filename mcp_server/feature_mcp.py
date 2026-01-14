@@ -93,6 +93,13 @@ class BulkCreateInput(BaseModel):
     features: list[FeatureCreateItem] = Field(..., min_length=1, description="List of features to create")
 
 
+class SubFeatureItem(BaseModel):
+    """Schema for a sub-feature when decomposing."""
+    name: str = Field(..., min_length=1, max_length=255, description="Sub-feature name")
+    description: str = Field(..., min_length=1, description="What this sub-feature accomplishes")
+    steps: list[str] = Field(..., min_length=1, description="Implementation steps for this sub-feature")
+
+
 # Global database session maker (initialized on startup)
 _session_maker = None
 _engine = None
@@ -165,24 +172,33 @@ def feature_get_next() -> str:
     AND is not currently in-progress by another agent.
     Use this at the start of each coding session to determine what to implement next.
 
+    Decomposed features are skipped (their sub-features should be worked on instead).
+
     Returns:
         JSON with feature details (id, priority, category, name, description, steps, passes, in_progress)
         or error message if all features are passing or being worked on.
     """
     session = get_session()
     try:
-        # Filter out both passing AND in-progress features to support parallel agents
+        # Filter out passing, in-progress, AND decomposed features
+        # Decomposed features will auto-pass when their sub-features pass
         feature = (
             session.query(Feature)
             .filter(Feature.passes == False)
             .filter(Feature.in_progress == False)
+            .filter(Feature.is_decomposed == False)
             .order_by(Feature.priority.asc(), Feature.id.asc())
             .first()
         )
 
         if feature is None:
             # Check if there are any non-passing features at all
-            any_pending = session.query(Feature).filter(Feature.passes == False).first()
+            any_pending = (
+                session.query(Feature)
+                .filter(Feature.passes == False)
+                .filter(Feature.is_decomposed == False)
+                .first()
+            )
             if any_pending:
                 return json.dumps({"error": "All pending features are currently being worked on by other agents. Wait for them to complete."})
             return json.dumps({"error": "All features are passing! No more work to do."})
@@ -235,6 +251,10 @@ def feature_mark_passing(
     Updates the feature's passes field to true and clears the in_progress flag.
     Use this after you have implemented the feature and verified it works correctly.
 
+    If this feature is a sub-feature (has a parent_id), this will also check if
+    all sibling sub-features are passing and automatically mark the parent as
+    passing if so.
+
     Args:
         feature_id: The ID of the feature to mark as passing
 
@@ -253,7 +273,31 @@ def feature_mark_passing(
         session.commit()
         session.refresh(feature)
 
-        return json.dumps(feature.to_dict(), indent=2)
+        result = feature.to_dict()
+
+        # If this is a sub-feature, check if parent should be marked complete
+        if feature.parent_id:
+            parent = session.query(Feature).filter(Feature.id == feature.parent_id).first()
+            if parent and parent.is_decomposed:
+                # Check all sub-features
+                sub_features = (
+                    session.query(Feature)
+                    .filter(Feature.parent_id == parent.id)
+                    .all()
+                )
+                all_passing = all(sf.passes for sf in sub_features)
+
+                if all_passing and not parent.passes:
+                    parent.passes = True
+                    parent.in_progress = False
+                    session.commit()
+                    result["parent_completed"] = {
+                        "id": parent.id,
+                        "name": parent.name,
+                        "message": "All sub-features complete! Parent feature marked as passing."
+                    }
+
+        return json.dumps(result, indent=2)
     finally:
         session.close()
 
@@ -432,6 +476,221 @@ def feature_create_bulk(
     except Exception as e:
         session.rollback()
         return json.dumps({"error": str(e)})
+    finally:
+        session.close()
+
+
+@mcp.tool()
+def feature_decompose(
+    feature_id: Annotated[int, Field(description="The ID of the complex feature to decompose", ge=1)],
+    sub_features: Annotated[list[dict], Field(description="List of smaller sub-features to create, each with name, description, and steps")],
+    reason: Annotated[Optional[str], Field(default=None, description="Why this feature needs to be decomposed")] = None,
+) -> str:
+    """Decompose a complex feature into smaller, more manageable sub-features.
+
+    Use this tool when a feature is too complex to implement in one go, or when
+    you've attempted a feature multiple times without success. Breaking it down
+    into smaller pieces makes each piece easier to implement and test.
+
+    The original feature will be marked as 'decomposed' and its sub-features
+    will be added to the queue with sequential priorities right after the parent.
+
+    The parent feature will automatically pass when ALL its sub-features pass.
+
+    Args:
+        feature_id: The ID of the feature to decompose
+        sub_features: List of sub-features, each with:
+            - name (str): Brief name for the sub-feature
+            - description (str): What this sub-feature accomplishes
+            - steps (list[str]): Implementation/verification steps
+        reason: Optional explanation for why decomposition was needed
+
+    Returns:
+        JSON with decomposition results including created sub-feature IDs
+
+    Example:
+        feature_decompose(
+            feature_id=14,
+            sub_features=[
+                {
+                    "name": "User authentication - Login form UI",
+                    "description": "Create the login form with email and password fields",
+                    "steps": ["Create LoginForm component", "Add validation", "Style the form"]
+                },
+                {
+                    "name": "User authentication - API integration",
+                    "description": "Connect login form to authentication API",
+                    "steps": ["Create auth API client", "Handle login request", "Store auth token"]
+                },
+                {
+                    "name": "User authentication - Session management",
+                    "description": "Manage user session state across the app",
+                    "steps": ["Create auth context", "Implement logout", "Add protected routes"]
+                }
+            ],
+            reason="Feature too complex - breaking into UI, API, and session management"
+        )
+    """
+    session = get_session()
+    try:
+        # Get the parent feature
+        parent = session.query(Feature).filter(Feature.id == feature_id).first()
+
+        if parent is None:
+            return json.dumps({"error": f"Feature with ID {feature_id} not found"})
+
+        if parent.passes:
+            return json.dumps({"error": "Cannot decompose a feature that is already passing"})
+
+        if parent.is_decomposed:
+            return json.dumps({"error": "Feature is already decomposed"})
+
+        if len(sub_features) < 2:
+            return json.dumps({"error": "Must provide at least 2 sub-features when decomposing"})
+
+        # Validate sub-features
+        for i, sf in enumerate(sub_features):
+            if not all(key in sf for key in ["name", "description", "steps"]):
+                return json.dumps({
+                    "error": f"Sub-feature at index {i} missing required fields (name, description, steps)"
+                })
+            if not isinstance(sf["steps"], list) or len(sf["steps"]) == 0:
+                return json.dumps({
+                    "error": f"Sub-feature at index {i} must have at least one step"
+                })
+
+        # Calculate priorities: insert sub-features right after parent
+        # Shift all features after parent's priority down
+        parent_priority = parent.priority
+        shift_amount = len(sub_features)
+
+        # Shift priorities of features after the parent
+        features_to_shift = (
+            session.query(Feature)
+            .filter(Feature.priority > parent_priority)
+            .filter(Feature.id != feature_id)
+            .all()
+        )
+        for f in features_to_shift:
+            f.priority += shift_amount
+
+        # Create sub-features
+        created_ids = []
+        for i, sf in enumerate(sub_features):
+            sub_feature = Feature(
+                priority=parent_priority + 1 + i,
+                category=parent.category,
+                name=sf["name"],
+                description=sf["description"],
+                steps=sf["steps"],
+                passes=False,
+                in_progress=False,
+                parent_id=parent.id,
+                source="decomposed",
+            )
+            session.add(sub_feature)
+            session.flush()  # Get the ID
+            created_ids.append(sub_feature.id)
+
+        # Mark parent as decomposed (not passing yet - will pass when all children pass)
+        parent.is_decomposed = True
+        parent.in_progress = False
+        parent.attempt_count = 0  # Reset attempts
+
+        session.commit()
+
+        # Clear stuck detection for this feature (file-based tracking)
+        try:
+            attempts_file = PROJECT_DIR / ".feature_attempts"
+            if attempts_file.exists():
+                import json as json_module
+                attempts_data = json_module.loads(attempts_file.read_text())
+                if str(feature_id) in attempts_data:
+                    del attempts_data[str(feature_id)]
+                    attempts_file.write_text(json_module.dumps(attempts_data))
+        except Exception:
+            pass  # Non-critical
+
+        return json.dumps({
+            "success": True,
+            "parent_id": feature_id,
+            "parent_name": parent.name,
+            "sub_feature_ids": created_ids,
+            "sub_feature_count": len(created_ids),
+            "reason": reason,
+            "message": f"Decomposed '{parent.name}' into {len(created_ids)} sub-features. "
+                      f"Parent will auto-pass when all sub-features pass.",
+        }, indent=2)
+
+    except Exception as e:
+        session.rollback()
+        return json.dumps({"error": str(e)})
+    finally:
+        session.close()
+
+
+@mcp.tool()
+def feature_check_parent_completion(
+    parent_id: Annotated[int, Field(description="The ID of the parent feature to check", ge=1)]
+) -> str:
+    """Check if all sub-features of a decomposed feature are passing.
+
+    If all sub-features are passing, the parent feature will be automatically
+    marked as passing.
+
+    This is called automatically after marking sub-features as passing, but
+    can also be called manually to verify completion status.
+
+    Args:
+        parent_id: The ID of the parent feature to check
+
+    Returns:
+        JSON with parent completion status and sub-feature details
+    """
+    session = get_session()
+    try:
+        parent = session.query(Feature).filter(Feature.id == parent_id).first()
+
+        if parent is None:
+            return json.dumps({"error": f"Feature with ID {parent_id} not found"})
+
+        if not parent.is_decomposed:
+            return json.dumps({"error": "Feature is not decomposed"})
+
+        # Get all sub-features
+        sub_features = (
+            session.query(Feature)
+            .filter(Feature.parent_id == parent_id)
+            .all()
+        )
+
+        if not sub_features:
+            return json.dumps({"error": "No sub-features found for this parent"})
+
+        passing_count = sum(1 for sf in sub_features if sf.passes)
+        total_count = len(sub_features)
+        all_passing = passing_count == total_count
+
+        # If all sub-features pass, mark parent as passing
+        if all_passing and not parent.passes:
+            parent.passes = True
+            parent.in_progress = False
+            session.commit()
+
+        return json.dumps({
+            "parent_id": parent_id,
+            "parent_name": parent.name,
+            "parent_passes": parent.passes,
+            "sub_features": {
+                "total": total_count,
+                "passing": passing_count,
+                "remaining": total_count - passing_count,
+            },
+            "all_complete": all_passing,
+            "message": "All sub-features complete! Parent marked as passing." if all_passing
+                      else f"{passing_count}/{total_count} sub-features passing",
+        }, indent=2)
+
     finally:
         session.close()
 

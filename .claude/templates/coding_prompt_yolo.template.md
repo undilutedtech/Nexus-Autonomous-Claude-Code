@@ -107,6 +107,27 @@ Use the feature_skip tool with feature_id={id}
 
 Document the SPECIFIC external blocker in `claude-progress.txt`. "Functionality not built" is NEVER a valid reason.
 
+#### Decomposing Complex Features (AUTOMATIC)
+
+If you encounter a feature that is too complex to implement in one session, the system will automatically detect this and trigger **decomposition mode**.
+
+**How it works:**
+1. When a feature fails after multiple attempts, the system detects it's "stuck"
+2. Instead of stopping, a special decomposition session starts
+3. The agent breaks the complex feature into 2-5 smaller sub-features
+4. Sub-features are added to the queue right after the parent
+5. When ALL sub-features pass, the parent automatically passes
+
+**You can also manually decompose a feature if you recognize it's too complex:**
+
+```
+# Break a complex feature into smaller pieces
+feature_decompose with feature_id={id} sub_features=[
+  {"name": "Feature - Part 1", "description": "...", "steps": ["..."]},
+  {"name": "Feature - Part 2", "description": "...", "steps": ["..."]}
+] reason="Feature requires multiple independent systems to be built"
+```
+
 ### STEP 4: IMPLEMENT THE FEATURE
 
 Implement the chosen feature thoroughly:
@@ -216,6 +237,12 @@ feature_skip with feature_id={id}
 
 # 6. Clear in-progress status (when abandoning a feature)
 feature_clear_in_progress with feature_id={id}
+
+# 7. Decompose a complex feature into smaller sub-features
+feature_decompose with feature_id={id} sub_features=[...] reason="..."
+
+# 8. Check if parent feature is complete (after sub-features pass)
+feature_check_parent_completion with parent_id={id}
 ```
 
 ### RULES:
